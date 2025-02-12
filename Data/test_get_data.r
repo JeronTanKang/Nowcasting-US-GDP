@@ -30,7 +30,10 @@ combined_data <- combined_data %>%
   mutate(
     cpi_lag1 = lead(value_CPI, 1),
     cpi_lag2 = lead(value_CPI, 2)
-  )
+  ) %>%
+  select(date, value_GDP, value_CPI)
 
 # Print combined data
 print(combined_data)
+
+write.csv(combined_data, "../data/test_macro_data.csv", row.names = FALSE)
