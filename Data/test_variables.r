@@ -41,3 +41,4 @@ combined_data <- reduce(data_list, full_join, by = "date")
 combined_data <- full_join(date_seq, combined_data, by = "date")
 combined_data <- combined_data %>% select(date, GDP, CPI, Crude_Oil, Interest_Rate, Unemployment, Trade_bal, Consumption, Investment )
 
+write.csv(combined_data, "../test_macro_data.csv", row.names = FALSE)
