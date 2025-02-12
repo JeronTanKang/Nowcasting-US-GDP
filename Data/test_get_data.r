@@ -36,4 +36,4 @@ combined_data <- combined_data %>%
 # Print combined data
 print(combined_data)
 
-write.csv(combined_data, "../data/test_macro_data.csv", row.names = FALSE)
+write.csv(combined_data, "../test_macro_data.csv", row.names = FALSE)
