@@ -1,3 +1,9 @@
+library(fredr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(zoo) 
+
 # Set FRED API key
 fredr_set_key("ae58a77f9383ad8ed12a84122eaa71e6") 
 
@@ -41,4 +47,4 @@ final_data <- final_data %>% select(date,GDP,CPI, Crude_Oil, Interest_Rate, Unem
                                     PCE,Retail_Sales, Investment, Housing_Starts,Capacity_Utilization,
                                     SP500, Industrial_Production, Nonfarm_Payrolls, PPI, Core_PCE) %>% arrange(desc(date))
   
-write.csv(combined_data, "../test_macro_data.csv", row.names = FALSE)
+write.csv(final_data, "../test_macro_data.csv", row.names = FALSE)
