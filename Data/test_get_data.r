@@ -8,7 +8,7 @@ library(zoo)
 fredr_set_key("ae58a77f9383ad8ed12a84122eaa71e6") 
 
 # 20 years of data
-start_date <- Sys.Date() - 365 * 20
+start_date <- Sys.Date() - 365 * 40
 end_date <- Sys.Date()
 
 # List of variables 
