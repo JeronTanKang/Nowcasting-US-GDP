@@ -1,3 +1,5 @@
+# damn hard
+
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
@@ -48,7 +50,7 @@ dfm_result = dfm.fit(maxiter=10000, method="lbfgs")
 # Ensure the model has converged
 convergence_info = dfm_result.mle_retvals
 if not convergence_info.get("converged", False):
-    print("⚠️ WARNING: The model did not fully converge! Consider increasing maxiter.")
+    print("WARNING: The model did not fully converge! Consider increasing maxiter.")
 
 # Extract the estimated common factor using Kalman smoothed states
 df_gdp["Factor"] = dfm_result.smoothed_state[0]  # Use smoothed state instead of filtered_state
