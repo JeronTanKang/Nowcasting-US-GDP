@@ -61,8 +61,34 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
 
     df_indicators = make_stationary(df_indicators)
 
-    # ---------------------- Fit Dynamic Factor Model (DFM) ----------------------
-    dfm = sm.tsa.DynamicFactor(df_indicators, k_factors=2, factor_order=1, enforce_stationarity=True)
+
+    # ---------------------- Select No.Factors using BIC ----------------------
+    def select_optimal_factors(df, max_factors=5):
+        best_k = 1
+        best_bic = np.inf  # Start with a high BIC value
+
+        for k in range(1, max_factors + 1):
+            try:
+                dfm = sm.tsa.DynamicFactor(df, k_factors=k, factor_order=1, enforce_stationarity=True)
+                dfm_result = dfm.fit(maxiter=5000, method="lbfgs")
+                bic = dfm_result.bic  # Get Bayesian Information Criterion
+
+                print(f"k_factors={k}, BIC={bic:.2f}")
+
+                if bic < best_bic:  
+                    best_k = k
+                    best_bic = bic
+            except Exception as e:
+                print(f"DFM failed for k={k}: {e}")
+
+        print(f"Optimal number of factors: {best_k}")
+        return best_k
+    
+    #optimal_k = select_optimal_factors(df_indicators, max_factors=5) #run this to find optimal_k
+    optimal_k = 1
+    #print("optimal_k", optimal_k)
+    # ---------------------- Fit Dynamic Factor Model (DFM) ----------------------  
+    dfm = sm.tsa.DynamicFactor(df_indicators, k_factors=optimal_k, factor_order=1, enforce_stationarity=True)
     dfm_result = dfm.fit(maxiter=50000, method="lbfgs")
 
     if not dfm_result.mle_retvals.get("converged", False):
@@ -123,7 +149,7 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
             var_result = var_model.fit(maxlags=2)  # Using lag 2 based on previous selection
 
             # Get the last known GDP before forecast
-            last_gdp = 0#train["GDP"].iloc[-1]
+            last_gdp = 0#train["GDP"].iloc[-1] 
 
             # Forecast the next GDP_diff
             lagged_data = train.values[-var_result.k_ar :]
