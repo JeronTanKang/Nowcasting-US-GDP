@@ -7,32 +7,27 @@ from statsmodels.tsa.api import VAR
 from sklearn.metrics import mean_squared_error
 from scipy.stats import multivariate_normal
 
-# Load the dataset
 file_path = "../Data/test_macro_data.csv"
 df = pd.read_csv(file_path)
 
-# Convert date column to datetime format
 df["date"] = pd.to_datetime(df["date"])
-df = df.set_index("date").asfreq("MS")  # Ensure time series has a frequency
+df = df.set_index("date").asfreq("MS")  #ensure time series has a frequency
 
-# Ensure the index is sorted in ascending order
 df = df.sort_index()
 
-# Store GDP separately
+# store gdp separate
 target_variable = "GDP"
 df_gdp = df[[target_variable]].copy()
 
-# Select all indicators except GDP
 indicators = [col for col in df.columns if col not in [target_variable]]
 
-# Filter dataset to include only indicators
 df_filtered = df[indicators]
 
-# ---------------------- EM Algorithm for Missing Data ----------------------
+# ---------------------- EM Algorithm to impute missing Data ----------------------
 def em_impute_missing_data(df, max_iter=100, tol=1e-4):
     df_imputed = df.copy()
 
-    # Fill initial missing values with column means
+    #fill initial missing values with column means
     for col in df.columns:
         df_imputed[col] = df_imputed[col].fillna(df[col].mean())
 
@@ -55,7 +50,7 @@ def em_impute_missing_data(df, max_iter=100, tol=1e-4):
                 cov_mo = cov_matrix.loc[missing_idx, observed_idx]
                 cov_mm = cov_matrix.loc[missing_idx, missing_idx]
 
-                # Regularization to prevent singular matrix issues
+                # Regularization to prevent singular matrix
                 cov_oo += np.eye(cov_oo.shape[0]) * 1e-4  
 
                 # Ensure covariance matrix is positive definite
@@ -83,10 +78,10 @@ def em_impute_missing_data(df, max_iter=100, tol=1e-4):
 
     return df_imputed
 
-# Apply EM to impute missing data
+# EM to impute missing data
 df_filtered_imputed = em_impute_missing_data(df_filtered)
 
-# Normalize data
+# Normalize 
 df_standardized = (df_filtered_imputed - df_filtered_imputed.mean()) / df_filtered_imputed.std()
 
 # ---------------------- Dynamic Factor Model (DFM) ----------------------
