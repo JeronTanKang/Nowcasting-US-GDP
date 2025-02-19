@@ -54,6 +54,11 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
 
     df_indicators = make_stationary(df_indicators)
 
+    # scale to improve model convergence
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    df_indicators = pd.DataFrame(scaler.fit_transform(df_indicators), index=df_indicators.index, columns=df_indicators.columns)
+
 
     # BIC for optimal k_factors
     def select_optimal_factors(df, max_factors=5):
@@ -63,7 +68,7 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
         for k in range(1, max_factors + 1):
             try:
                 dfm = sm.tsa.DynamicFactor(df, k_factors=k, factor_order=1, enforce_stationarity=True)
-                dfm_result = dfm.fit(maxiter=5000, method="lbfgs")
+                dfm_result = dfm.fit(maxiter=2000, method="lbfgs")
                 bic = dfm_result.bic  # Get Bayesian Information Criterion
 
                 print(f"k_factors={k}, BIC={bic:.2f}")
@@ -95,10 +100,19 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
     df_gdp = df_gdp.iloc[-dfm_result.smoothed_state.shape[1]:] 
     df_gdp["Factor"] = dfm_result.smoothed_state[0]
 
+    print("HAVE A LOOK AT LATENT FACTOR:", df_gdp.tail(20))
+
     # train VAR model
     df_model = df_gdp.dropna()
+    print(f"Rows before dropna: {df_gdp.shape[0]}")
+    print(f"Rows after dropna: {df_gdp.dropna().shape[0]}")
+    print(f"Rows dropped: {df_gdp.shape[0] - df_gdp.dropna().shape[0]}")
+
     df_model["GDP_diff"] = df_model["GDP"].diff()
     df_model["Factor_diff"] = df_model["Factor"].diff()
+
+    print("DF MODEL:", df_model.tail(10))
+
     df_model = df_model.dropna()
 
     var_data = df_model[["GDP_diff", "Factor_diff"]]
@@ -119,36 +133,42 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
 
     print(f"\nNowcasted GDP for {latest_date.strftime('%Y-%m')}: {next_gdp_nowcast}")
 
-    def compute_forecast_rmse(data, window_size=20, forecast_horizon=1):
+    def compute_forecast_rmse(data, forecast_horizon=1):
         """
         Computes the rolling RMSE of a VAR model using a sliding window approach.
         """
         actual_values = []
         predicted_values = []
+        predicted_diff = []
         forecast_dates = []
         residual = []
+        factor_diff = []
 
         # Ensure we only use rows where GDP is not missing (depends on if we decide to interpolate GDP data)
-        data = data.dropna(subset=["GDP"])  
+        #data = data.dropna(subset=["GDP"])  
+
 
         # Sliding window approach
-        for start in range(int((len(data) - window_size - forecast_horizon + 1) * 0.95), len(data) - window_size - forecast_horizon + 1):
-            train = data.iloc[start : start + window_size]  # Train on this window
-            test = data.iloc[start + window_size : start + window_size + forecast_horizon]  # Next period to predict
+        window_size = int(len(data) * 0.95)
+        for end in range(window_size, len(data)-forecast_horizon+1):
+            train = data.iloc[: end]  # Train on this window
+            test = data.iloc[end: end + forecast_horizon]  # Next period to predict
 
             # Ensure test period has valid GDP data
             if test["GDP"].isna().any():
                 continue  # Skip iteration if GDP is missing in the test set
 
-            # Fit VAR model
-            var_model = VAR(train)
+            # Fit VAR model: var_result is the fitted VAR model
+            # IMPORTANT: for now subset train to only input GDP_diff and Factor_diff into VAR model
+            var_model = VAR(train[["GDP_diff", "Factor_diff"]])
             var_result = var_model.fit(maxlags=2)  # Using lag 2 based on previous selection
 
             # Get the last known GDP before forecast
-            last_gdp = 0#train["GDP"].iloc[-1] 
+            last_gdp = train["GDP"].iloc[-1] 
 
             # Forecast the next GDP_diff
-            lagged_data = train.values[-var_result.k_ar :]
+            # IMPORTANT: for now subset train to only input GDP_diff and Factor_diff into VAR model
+            lagged_data = train[["GDP_diff", "Factor_diff"]].values[-var_result.k_ar :]  # k_ar =2 will be selected since 2 lags needed for forecasting
             forecast = var_result.forecast(lagged_data, steps=forecast_horizon)
 
             # Convert differenced prediction back to original scale
@@ -156,11 +176,13 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
 
             # Store actual and predicted values
             actual_values.append(test["GDP"].values[forecast_horizon - 1])
+            predicted_diff.append(forecast[0, 0])
             predicted_values.append(forecasted_gdp)
             residual.append(forecasted_gdp - test["GDP"].values[forecast_horizon - 1])
             forecast_dates.append(test.index[forecast_horizon - 1])
+            factor_diff.append(test["Factor_diff"].values[forecast_horizon - 1])
 
-        results_df = pd.DataFrame({"Forecast Date": forecast_dates, "Actual GDP": actual_values, "Predicted GDP": predicted_values, "Residuals": residual})
+        results_df = pd.DataFrame({"Forecast Date": forecast_dates, "Actual GDP": actual_values, "Predicted GDP diff": predicted_diff,"Predicted GDP": predicted_values, "Residuals": residual, "Factor Diffs": factor_diff})
         print("\nForecast vs. Actual GDP:")
         print(results_df)
 
@@ -169,6 +191,7 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
 
         return rmse
 
+    print("THIS DATA GO INTO ROLLING:", df_model.tail())
     compute_forecast_rmse(df_model)
 
     return next_gdp_nowcast
