@@ -85,6 +85,7 @@ def dfm_nowcast(file_path: str, target_variable: str = "GDP"):
     
     # fit dfm 
     dfm = sm.tsa.DynamicFactor(df_indicators, k_factors=optimal_k, factor_order=1, enforce_stationarity=True)
+    # to do: check if we want to search what optimal factor_order to use
     dfm_result = dfm.fit(maxiter=50000, method="lbfgs")
 
     if not dfm_result.mle_retvals.get("converged", False):
