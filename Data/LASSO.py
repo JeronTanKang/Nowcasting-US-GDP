@@ -21,8 +21,9 @@ quarterly_indicators = monthly_data.groupby("quarter").mean().reset_index()
 #merge with GDP values
 merged_data = gdp_data.merge(quarterly_indicators, on="quarter", how="inner")
 
+
 # Define features (X) and target (y)
-X = merged_data.drop(columns=["GDP", "date", "quarter"], errors='ignore')  # Remove unnecessary columns
+X = merged_data.drop(columns=["GDP", "date", "quarter", 'date_x', 'date_y'], errors='ignore')  # Remove unnecessary columns
 y = merged_data["GDP"]
 
 
