@@ -20,7 +20,7 @@ X = data.drop(columns=["GDP", "date", "quarter", 'date_x', 'date_y'], errors='ig
 y = data["GDP"]
 
 
-# Standardize features (Lasso is sensitive to scaling)
+# Standardize
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
