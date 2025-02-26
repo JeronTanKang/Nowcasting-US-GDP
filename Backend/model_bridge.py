@@ -1,14 +1,10 @@
 import pandas as pd
 import numpy as np
-
+import statsmodels.api as sm
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
-import pandas as pd
-import statsmodels.api as sm
 
-import pandas as pd
-import statsmodels.api as sm
 
 def fit_ols_model(df):
     """
@@ -50,10 +46,26 @@ def fit_ols_model(df):
     return model
 
 
+
+def exp_almon_weighted(series, alpha=0.9):
+    """
+    Applies an Exponential Almon transformation for weighted aggregation.
+    - Recent values get higher weights.
+
+    Args:
+    - series (pd.Series): Time series data to transform.
+    - alpha (float): Decay factor (0 < alpha < 1, closer to 1 gives more weight to recent values).
+
+    Returns:
+    - float: Weighted aggregated value.
+    """
+    weights = np.array([(alpha ** i) for i in range(len(series))][::-1])
+    return np.sum(series * weights) / np.sum(weights)
+
 def aggregate_indicators(df):
     """
     Function that takes in df with monthly frequency indicators and GDP.
-    - Converts indicators to quarterly frequency using mean aggregation.
+    - Converts indicators to quarterly frequency using specified aggregation rules.
     - GDP remains unchanged (takes the only available value per quarter).
 
     Returns:
@@ -62,23 +74,50 @@ def aggregate_indicators(df):
 
     # Convert 'date' column to datetime format if not already
     df['date'] = pd.to_datetime(df['date'], format="%Y-%m")
-
+    
     # Set 'date' as index
     df.set_index('date', inplace=True)
 
+    # Define aggregation rules for each column
+    aggregation_rule = {
+        "CPI": "mean",
+        "Crude_Oil": "mean",
+        "Interest_Rate": "mean",
+        "Unemployment": "mean",
+        "Trade_Balance": "sum",
+        "PCE": "sum",
+        "Retail_Sales": "sum",
+        "Housing_Starts": "sum",
+        "Capacity_Utilization": "mean",
+        "Industrial_Production": "mean",
+        "Nonfarm_Payrolls": "sum",
+        "PPI": "mean",
+        "Core_PCE": "exp_almon"  
+    }
+
     # Separate GDP column from indicators
     gdp_data = df[['GDP']].resample('Q').last()  # Takes the last available GDP value per quarter
-    indicators_data = df.drop(columns=['GDP']).resample('Q').mean()  # Aggregate indicators using mean
+
+    # Initialize an empty DataFrame for indicators
+    indicators_data = pd.DataFrame()
+
+    # Apply different aggregation methods for each indicator
+    for col, method in aggregation_rule.items():
+        if method == "mean":
+            indicators_data[col] = df[col].resample('Q').mean()  # Standard mean
+        elif method == "sum":
+            indicators_data[col] = df[col].resample('Q').sum()  # Summation for flow variables
+        elif method == "exp_almon":
+            indicators_data[col] = df[col].resample('Q').apply(exp_almon_weighted)  # Apply Almon weighting
 
     # Merge back GDP and aggregated indicators
     quarterly_df = gdp_data.merge(indicators_data, left_index=True, right_index=True, how='left')
 
     return quarterly_df
 
-# uncomment below to test
 
-#file_path = "../Data/test_macro_data.csv"
-#print(fit_ols_model(aggregate_indicators(pd.read_csv(file_path))))
+file_path = "../Data/test_macro_data.csv"
+print(fit_ols_model(aggregate_indicators(pd.read_csv(file_path))))
 
 def model_bridge(file_path):
 
@@ -132,9 +171,7 @@ if __name__ == "__main__":
         return predictions
 
     # Estimate GDP using Bridge Regression Model
-    gdp_predictions = rolling_regression(y, X, rolling_window)"""
-
-    """
+    gdp_predictions = rolling_regression(y, X, rolling_window)
 
     # Step 3: Forecast Monthly Indicators Using AR(p) Models
     forecast_horizon = 3  # Predict next 3 months
