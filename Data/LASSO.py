@@ -3,28 +3,21 @@ import numpy as np
 from sklearn.linear_model import LassoCV
 from sklearn.preprocessing import StandardScaler
 
+
+
+
 # Load dataset
-file_path = "../Data/test_macro_data.csv" 
+file_path = "../Data/fredmd_all_indicators.csv" 
 data = pd.read_csv(file_path, parse_dates=["date"])
 data["date"] = pd.to_datetime(data["date"], format="%Y-%m")
 
-#extract quarterly gdp values
-gdp_data = data[["date", "GDP"]].dropna() 
-gdp_data["quarter"] = gdp_data["date"].dt.to_period("Q")
+data = data.dropna(subset=["GDP"])
 
-
-#change indicators from monthly to quarterly by taking mean
-monthly_data = data.drop(columns = ["GDP"])
-monthly_data["quarter"] = monthly_data["date"].dt.to_period("Q")
-quarterly_indicators = monthly_data.groupby("quarter").mean().reset_index()
-
-#merge with GDP values
-merged_data = gdp_data.merge(quarterly_indicators, on="quarter", how="inner")
-
+data.fillna(method='bfill', inplace=True)
 
 # Define features (X) and target (y)
-X = merged_data.drop(columns=["GDP", "date", "quarter", 'date_x', 'date_y'], errors='ignore')  # Remove unnecessary columns
-y = merged_data["GDP"]
+X = data.drop(columns=["GDP", "date", "quarter", 'date_x', 'date_y'], errors='ignore')  # Remove unnecessary columns
+y = data["GDP"]
 
 
 # Standardize features (Lasso is sensitive to scaling)
