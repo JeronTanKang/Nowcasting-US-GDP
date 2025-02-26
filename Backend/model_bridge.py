@@ -7,26 +7,36 @@ warnings.simplefilter(action='ignore', category=Warning)
 import pandas as pd
 import statsmodels.api as sm
 
+import pandas as pd
+import statsmodels.api as sm
+
 def fit_ols_model(df):
     """
     Fits an OLS regression model using GDP as the dependent variable
     and the other 10 indicators as independent variables.
 
     Args:
-    - df (pd.DataFrame): DataFrame with 'date' column, 'GDP' column, and 10 indicators.
+    - df (pd.DataFrame): DataFrame with 'date' as index, 'GDP' column, and 10 indicators.
 
     Returns:
     - results: Fitted OLS model
     """
 
-    # Ensure 'date' is the index (optional, but useful for time series)
-    df = df.set_index('date')
+    # Ensure 'date' is the index
+    if df.index.name != 'date':
+        df = df.set_index('date')
+
+    # Drop rows where GDP is missing
+    df = df.dropna(subset=['GDP'])
+
+    # Forward-fill missing values in indicators
+    df = df.fillna(method='ffill')  # Fills NaNs with the last available value
+
+    print(df)
 
     # Define dependent (Y) and independent variables (X)
     Y = df['GDP']  # GDP is the dependent variable
     X = df.drop(columns=['GDP'])  # Drop GDP, keep indicators
-
-    # dont forget to handle dates. we may want to keep dates so we can identify outlier years
 
     # Add constant for the intercept term
     X = sm.add_constant(X)
@@ -36,20 +46,39 @@ def fit_ols_model(df):
 
     # Print model summary
     print(model.summary())
-
+    
     return model
 
-def aggregate_indicators(indicators_data):
-        """
-        function that takes in indicators_data monthly frequency
-        returns indicators_data in quarterly frequency
-        """
 
-        #quarterly_indicators = indicators_data.resample('Q').mean()
-        pass
+def aggregate_indicators(df):
+    """
+    Function that takes in df with monthly frequency indicators and GDP.
+    - Converts indicators to quarterly frequency using mean aggregation.
+    - GDP remains unchanged (takes the only available value per quarter).
 
-# Example usage (assuming df is already loaded with the correct format)
-# model_results = fit_ols_model(df)
+    Returns:
+    - DataFrame with quarterly frequency.
+    """
+
+    # Convert 'date' column to datetime format if not already
+    df['date'] = pd.to_datetime(df['date'], format="%Y-%m")
+
+    # Set 'date' as index
+    df.set_index('date', inplace=True)
+
+    # Separate GDP column from indicators
+    gdp_data = df[['GDP']].resample('Q').last()  # Takes the last available GDP value per quarter
+    indicators_data = df.drop(columns=['GDP']).resample('Q').mean()  # Aggregate indicators using mean
+
+    # Merge back GDP and aggregated indicators
+    quarterly_df = gdp_data.merge(indicators_data, left_index=True, right_index=True, how='left')
+
+    return quarterly_df
+
+# uncomment below to test
+
+#file_path = "../Data/test_macro_data.csv"
+#print(fit_ols_model(aggregate_indicators(pd.read_csv(file_path))))
 
 def model_bridge(file_path):
 
@@ -65,23 +94,30 @@ def model_bridge(file_path):
     ols_model = fit_ols_model(aggregate_indicators(df))
 
     # step 2: for loop to forecast values for each indicator
+    forecasted_indicators = forecast_indicators(df)
+
+    # combine
 
     # step 3: generate nowcast
+    quarterly_indicators_forecasted = aggregate_indicators(forecasted_indicators) # aggregate to quartlerly
+    nowcast_gdp = ols_model.predict(quarterly_indicators_forecasted)
+
+    return nowcast_gdp
+
+
+if __name__ == "__main__":
+    file_path = "../Data/test_macro_data.csv"
+    #nowcast_gdp = model_bridge(file_path)
+    
+    #print("\nFinal Nowcasted GDP:", nowcast_gdp)
 
 
 
 
-    # Merge GDP with Quarterly Aggregated Indicators
-    data = pd.merge(gdp_data, quarterly_indicators, left_index=True, right_index=True, how='inner')
 
-    # Define dependent and independent variables
-    y = data['gdp']
-    X = data.drop(columns=['gdp'])
+###### everything below is just an archive
 
-
-    # aggregate and fit 
-
-    """
+"""
     # Step 2: Rolling Window Bridge Regression (80 quarters)
     rolling_window = 80  # Set rolling window size
 
@@ -138,13 +174,5 @@ def model_bridge(file_path):
     latest_model = sm.OLS(y[-rolling_window:], sm.add_constant(X[-rolling_window:])).fit()
     nowcast_gdp = latest_model.predict(X_latest)
     """
-    pass
-    #return nowcast_gdp
-
-#print(f'Nowcasted GDP for the next quarter: {nowcast_gdp[0]:.2f}')
-
-if __name__ == "__main__":
-    file_path = "../Data/test_macro_data.csv"
-    nowcast_gdp = model_bridge(file_path)
     
-    print("\nFinal Nowcasted GDP:", nowcast_gdp)
+    #return nowcast_gdp
