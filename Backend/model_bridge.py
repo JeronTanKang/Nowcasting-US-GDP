@@ -4,7 +4,61 @@ import statsmodels.api as sm
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
+import pandas as pd
+import statsmodels.api as sm
 
+from datetime import datetime
+import pandas as pd
+from statsmodels.tsa.ar_model import AutoReg
+
+def predict_missing_values(df, target_variable="GDP"):
+    """ 
+    Handles missing values only for predictor variables (not GDP).
+    - Starts 3 months before the current month.
+    - If a month has missing data, predict using AR(p).
+    - If a month has data, use it to predict the next month.
+    - Works column by column, excluding GDP (Y variable).
+    """
+
+    today = datetime.today().replace(day=1)  # Get first day of the current month
+    end_date = today  # The current month is the last month we predict
+    start_date = today - pd.DateOffset(months=3)  # Start 3 months before the current month
+
+    # Exclude GDP (target variable) from the predictor list
+    predictors = df.columns[df.columns != target_variable]
+
+    for col in predictors:
+        try:
+            current_date = start_date
+
+            # Train AR model on available data (without dropping NaNs)
+            best_p = 1
+            best_aic = float('inf')
+
+            for p in range(1, min(6, len(df[col].dropna()))):  # Ensure enough data for lags
+                try:
+                    model = AutoReg(df[col], lags=p, missing="drop").fit()  # Drop missing values **only for fitting**
+                    if model.aic < best_aic:
+                        best_p = p
+                        best_aic = model.aic
+                except:
+                    continue
+
+            # Fit the final model using the best p
+            final_model = AutoReg(df[col], lags=best_p, missing="drop").fit()
+
+            # Start filling missing values from `start_date` to `end_date`
+            while current_date <= end_date:
+                if pd.isna(df.loc[current_date, col]):  # If the value is missing, predict it
+                    predicted_value = final_model.predict(start=len(df[col].dropna()), end=len(df[col].dropna()))[0]
+                    df.loc[current_date, col] = predicted_value
+                # Move to next month
+                current_date += pd.DateOffset(months=1)
+
+        except Exception as e:
+            print(f"Warning: AR model failed for column {col}, error: {e}")
+
+    return df
 
 def fit_ols_model(df):
     """
