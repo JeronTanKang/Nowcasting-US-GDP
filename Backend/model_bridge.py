@@ -4,11 +4,7 @@ import statsmodels.api as sm
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
-import pandas as pd
-import statsmodels.api as sm
-
 from datetime import datetime
-import pandas as pd
 from statsmodels.tsa.ar_model import AutoReg
 
 def predict_missing_values(df, target_variable="GDP"):
@@ -100,7 +96,6 @@ def fit_ols_model(df):
     return model
 
 
-
 def exp_almon_weighted(series, alpha=0.9):
     """
     Applies an Exponential Almon transformation for weighted aggregation.
@@ -187,12 +182,12 @@ def model_bridge(file_path):
     ols_model = fit_ols_model(aggregate_indicators(df))
 
     # step 2: for loop to forecast values for each indicator
-    forecasted_indicators = forecast_indicators(df)
+    monthly_indicators_forecasted = forecast_indicators(df)
 
     # combine
 
     # step 3: generate nowcast
-    quarterly_indicators_forecasted = aggregate_indicators(forecasted_indicators) # aggregate to quartlerly
+    quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) # aggregate to quartlerly
     nowcast_gdp = ols_model.predict(quarterly_indicators_forecasted)
 
     return nowcast_gdp
