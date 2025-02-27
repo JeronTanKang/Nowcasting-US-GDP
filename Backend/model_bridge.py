@@ -7,7 +7,45 @@ warnings.simplefilter(action='ignore', category=Warning)
 from datetime import datetime
 from statsmodels.tsa.ar_model import AutoReg
 
-def predict_missing_values(df, target_variable="GDP"):
+def record_months_to_forecast(df, predictors):
+    """
+    Identifies months that need forecasting for each predictor.
+
+    Args:
+    - df (pd.DataFrame): DataFrame with dates as index and predictors as columns.
+    - predictors (list): List of predictor variable names.
+
+    Returns:
+    - dict: A dictionary where keys are predictor names and values are lists of months to forecast.
+    """
+
+    months_to_forecast = {}  # Dictionary to store missing months for each predictor
+
+    for col in predictors:
+        months_to_forecast[col] = []  # Initialize list for each predictor
+
+        # Find the most recent non-NaN value
+        last_known_index = df[col].dropna().index[0] if df[col].dropna().size > 0 else None
+        #print(col, last_known_index)
+
+        if last_known_index:
+            # Convert to a Timestamp
+            last_known_date = pd.to_datetime(last_known_index)
+
+            # Start checking from the next month
+            next_date = (last_known_date + pd.DateOffset(months=1)).strftime('%Y-%m')
+            #print(next_date)
+
+            # Iterate forward until we reach the last date in df
+            while next_date in df.index and pd.isna(df.loc[next_date, col]):
+                months_to_forecast[col].append(next_date)
+                next_date = (pd.to_datetime(next_date) + pd.DateOffset(months=1)).strftime('%Y-%m')
+
+    return months_to_forecast
+
+def forecast_indicators(df, exclude=["date", "GDP"]):
+    df = df.set_index("date")  # Sets "date" as the index
+    print(df)
     """ 
     Handles missing values only for predictor variables (not GDP).
     - Starts 3 months before the current month.
@@ -16,45 +54,51 @@ def predict_missing_values(df, target_variable="GDP"):
     - Works column by column, excluding GDP (Y variable).
     """
 
-    today = datetime.today().replace(day=1)  # Get first day of the current month
+    today = datetime.today().replace(day=1).strftime('%Y-%m')
+
+    # Define start and end dates in YYYY-MM string format
     end_date = today  # The current month is the last month we predict
-    start_date = today - pd.DateOffset(months=3)  # Start 3 months before the current month
+    start_date = (datetime.today().replace(day=1) - pd.DateOffset(months=3)).strftime('%Y-%m')
+
+    print("PRINT DATES:", start_date, end_date)
 
     # Exclude GDP (target variable) from the predictor list
-    predictors = df.columns[df.columns != target_variable]
+    predictors = df.columns.difference(exclude)
+
+    months_to_forecast = record_months_to_forecast(df, predictors)
+    print(months_to_forecast)
 
     for col in predictors:
-        try:
-            current_date = start_date
+        if col in months_to_forecast and months_to_forecast[col]:  # Check if there are months to forecast
+            end_month = min(months_to_forecast[col])  # Earliest missing month (YYYY-MM string)
+            start_month = max(months_to_forecast[col])    # Latest missing month (YYYY-MM string)
+            print(start_month, end_month)
+            # Convert start and end to integer index positions for AutoReg
+            indic_data = df[col].dropna()
 
-            # Train AR model on available data (without dropping NaNs)
-            best_p = 1
-            best_aic = float('inf')
+            # Find the last known data point's index
+            #last_known_index = df.index.get_loc(indic_data.index[-1])
 
-            for p in range(1, min(6, len(df[col].dropna()))):  # Ensure enough data for lags
-                try:
-                    model = AutoReg(df[col], lags=p, missing="drop").fit()  # Drop missing values **only for fitting**
-                    if model.aic < best_aic:
-                        best_p = p
-                        best_aic = model.aic
-                except:
-                    continue
+            # Determine forecast start and end indices (relative to training data)
+            forecast_start = 0#last_known_index + 1
+            forecast_end = forecast_start + len(months_to_forecast[col]) - 1
 
-            # Fit the final model using the best p
-            final_model = AutoReg(df[col], lags=best_p, missing="drop").fit()
 
-            # Start filling missing values from `start_date` to `end_date`
-            while current_date <= end_date:
-                if pd.isna(df.loc[current_date, col]):  # If the value is missing, predict it
-                    predicted_value = final_model.predict(start=len(df[col].dropna()), end=len(df[col].dropna()))[0]
-                    df.loc[current_date, col] = predicted_value
-                # Move to next month
-                current_date += pd.DateOffset(months=1)
+            print(f"✅ {col}:  forecasting from {forecast_start} to {forecast_end}")
 
-        except Exception as e:
-            print(f"Warning: AR model failed for column {col}, error: {e}")
+            # Fit AutoReg model
+            indic_data = indic_data.sort_index(ascending=True)
+            final_model = AutoReg(indic_data, lags=3).fit()
+
+            # Predict missing values using AutoReg
+            predicted_values = final_model.predict(start=forecast_start, end=forecast_end)
+
+            # Store predictions in DataFrame format
+            predicted_series = pd.Series(predicted_values.values, index=pd.to_datetime(months_to_forecast[col]))
+            df.update(predicted_series.to_frame(name=col))
 
     return df
+
 
 def fit_ols_model(df):
     """
@@ -166,7 +210,7 @@ def aggregate_indicators(df):
 
 
 file_path = "../Data/test_macro_data.csv"
-print(fit_ols_model(aggregate_indicators(pd.read_csv(file_path))))
+print(forecast_indicators(pd.read_csv(file_path)))
 
 def model_bridge(file_path):
 
