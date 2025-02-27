@@ -84,7 +84,7 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
             forecast_end = forecast_start + len(months_to_forecast[col]) - 1
 
 
-            print(f"✅ {col}:  forecasting from {forecast_start} to {forecast_end}")
+            print(f"{col}:  forecasting from {forecast_start} to {forecast_end}")
 
             # Fit AutoReg model
             indic_data = indic_data.sort_index(ascending=True)
