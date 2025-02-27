@@ -39,7 +39,7 @@ variables <- list(
   
 )
 
-# Function to retrieve and clean data
+#retrieve and clean data
 fetch_fred_data <- function(series_id, new_name) {
   fredr(series_id = series_id, observation_start = start_date, observation_end = end_date) %>%
     mutate(date = format(date, "%Y-%m")) %>%  # Convert to Year-Month format
