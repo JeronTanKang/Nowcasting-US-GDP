@@ -3,27 +3,34 @@ import numpy as np
 from sklearn.linear_model import LassoCV
 from sklearn.preprocessing import StandardScaler
 import statsmodels.api as sm
-
-from itertools import combinations
 import sys
 import os
 # Add the Backend folder to the system path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 # Import the functions from make_stationary.py
 from make_stationary import is_stationary, make_stationary
+
 # Load dataset
-file_path = "../Data/test_macro_data.csv" 
+file_path = "test_macro_data.csv" 
 data = pd.read_csv(file_path, parse_dates=["date"])
 data["date"] = pd.to_datetime(data["date"], format="%Y-%m")
 
-data = data.dropna(subset=["GDP"]) #drop rows with no gdp values
-data.drop(columns= "date", inplace= True) #drop date column
-data.fillna(method='bfill', inplace=True)  #back fill NANs for indicators
-data_stationary, diff_counts = make_stationary(data) 
-data_stationary.dropna(inplace=True) #drop 3 NA rows
+#drop rows with no gdp values
+data = data.dropna(subset=["GDP"]) 
+
+#drop date column
+data.drop(columns= "date", inplace= True) 
+
+#back fill NANs for indicators
+data.fillna(method='bfill', inplace=True)  
+
+data_stationary, diff_counts = make_stationary(data)
+
+#drop 3 NA rows
+data_stationary.dropna(inplace=True) 
 
 # Define features (X) and target (y)
-x = data_stationary.drop(columns=["GDP", "date", "quarter", 'date_x', 'date_y'], errors='ignore')  # Remove unnecessary columns
+x = data_stationary.drop(columns=["GDP", "date", "quarter", 'date_x', 'date_y'], errors='ignore')  # keep indicator variables only
 y = data_stationary["GDP"]
 
 # Standardize
@@ -46,7 +53,7 @@ lasso_results = lasso_results[lasso_results["Coefficient"] != 0]  # Keep only im
 lasso_results["Importance"] = abs(lasso_results["Coefficient"])  # Compute absolute importance
 lasso_results = lasso_results.sort_values(by="Importance", ascending=False)
 
-print(lasso_results)
+print(lasso_results) #just to check out indicators that are non zero
 
 # Get feature importance and sort by absolute values
 feature_importance = np.abs(lasso.coef_)
@@ -62,7 +69,7 @@ def compute_aic_statsmodels(x_subset, y_subset):
 aic_scores = []
 feature_counts = []
 
-for num_features in range(1, len(sorted_features) + 1, 1): 
+for num_features in range(1, len(sorted_features) + 1, 1):  # for loop with increasing number of indicators
     selected_features = sorted_features[:num_features]
     x_subset = x[selected_features]
 
