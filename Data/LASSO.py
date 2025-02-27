@@ -47,6 +47,7 @@ lasso_results["Importance"] = abs(lasso_results["Coefficient"])  # Compute absol
 lasso_results = lasso_results.sort_values(by="Importance", ascending=False)
 
 print(lasso_results)
+
 # Get feature importance and sort by absolute values
 feature_importance = np.abs(lasso.coef_)
 sorted_features = x.columns[np.argsort(-feature_importance)]  # Sort in descending order
@@ -61,7 +62,7 @@ def compute_aic_statsmodels(x_subset, y_subset):
 aic_scores = []
 feature_counts = []
 
-for num_features in range(1, len(sorted_features) + 1, 1):  # Test feature subsets in steps of 5
+for num_features in range(1, len(sorted_features) + 1, 1): 
     selected_features = sorted_features[:num_features]
     x_subset = x[selected_features]
 
@@ -77,10 +78,9 @@ results = pd.DataFrame({"Feature Count": feature_counts, "AIC": aic_scores})
 # Find best feature count based on AIC/BIC
 best_aic_count = results.loc[results["AIC"].idxmin(), "Feature Count"]
 
-# Select final feature count based on AIC (or BIC if you prefer fewer features)
+# Select final feature count based on AIC
 optimal_feature_count = best_aic_count 
 final_selected_features = sorted_features[:optimal_feature_count]
 
-# **Output Only the Selected Variable Names**
 print("Final selected indicators (based on AIC):")
 print(final_selected_features.tolist())
