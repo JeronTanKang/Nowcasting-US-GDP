@@ -58,7 +58,7 @@ def compute_aic_statsmodels(x_subset, y_subset):
     ols_model = sm.OLS(y_subset, x_with_const).fit()
     return ols_model.aic
 
-# Test different feature counts for AIC/BIC selection
+# Test different feature counts for AIC selection
 aic_scores = []
 feature_counts = []
 
@@ -66,7 +66,7 @@ for num_features in range(1, len(sorted_features) + 1, 1):
     selected_features = sorted_features[:num_features]
     x_subset = x[selected_features]
 
-    # Compute AIC/BIC using statsmodels OLS
+    # Compute AIC using statsmodels OLS
     aic = compute_aic_statsmodels(x_subset, y)
 
     aic_scores.append(aic)
@@ -75,7 +75,7 @@ for num_features in range(1, len(sorted_features) + 1, 1):
 # Convert results to DataFrame
 results = pd.DataFrame({"Feature Count": feature_counts, "AIC": aic_scores})
 
-# Find best feature count based on AIC/BIC
+# Find best feature count based on AIC
 best_aic_count = results.loc[results["AIC"].idxmin(), "Feature Count"]
 
 # Select final feature count based on AIC
