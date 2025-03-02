@@ -24,24 +24,22 @@ def record_months_to_forecast(df, predictors):
     - dict: A dictionary where keys are predictor names and values are lists of months to forecast.
     """
 
-    months_to_forecast = {}  # Dictionary to store missing months for each predictor
+    months_to_forecast = {}  # dict to store missing months for each predictor
 
     for col in predictors:
-        months_to_forecast[col] = []  # Initialize list for each predictor
+        months_to_forecast[col] = [] 
 
-        # Find the most recent non-NaN value
+        # this identifies the latest row with reported data
         last_known_index = df[col].dropna().index[0] if df[col].dropna().size > 0 else None
         #print(col, last_known_index)
 
         if last_known_index:
-            # Convert to a Timestamp
             last_known_date = pd.to_datetime(last_known_index)
 
-            # Start checking from the next month
             next_date = (last_known_date + pd.DateOffset(months=1)).strftime('%Y-%m')
             #print(next_date)
 
-            # Iterate forward until we reach the last date in df
+            # iterate forward until reach the last date in df
             while next_date in df.index and pd.isna(df.loc[next_date, col]):
                 months_to_forecast[col].append(next_date)
                 next_date = (pd.to_datetime(next_date) + pd.DateOffset(months=1)).strftime('%Y-%m')
@@ -49,7 +47,7 @@ def record_months_to_forecast(df, predictors):
     return months_to_forecast
 
 def forecast_indicators(df, exclude=["date", "GDP"]):
-    df = df.set_index("date")  # Sets "date" as the index
+    df = df.set_index("date") 
     df_temp = df.copy()
 
     """ 
@@ -65,10 +63,10 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
     #print("PRINTING FROM forecast_indicators",df)
     print("TODAY MONTH:", today_dt_object.month)
 
-    month_offset = (today_dt_object.month - 1) % 3  # Cycles every 3 months
+    month_offset = (today_dt_object.month - 1) % 3  
     months_to_add = [today_dt_object + pd.DateOffset(months=i+1) for i in range(2 - month_offset)]
     
-    # Convert to YYYY-MM format and filter out months already in the index
+    # add months not already in the index to make up the current quarter
     months_to_add = [date.strftime('%Y-%m') for date in months_to_add if date.strftime('%Y-%m') not in df.index]
     
     if months_to_add:
@@ -78,27 +76,25 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
 
     print(f" Added rows: {months_to_add}")
 
-    # Define start and end dates in YYYY-MM string format
-    end_date = today  # The current month is the last month we predict
+    # months we will be forecasting data with AR(p)
+    end_date = today
     start_date = (datetime.today().replace(day=1) - pd.DateOffset(months=3)).strftime('%Y-%m')
 
     print("PRINT DATES:", start_date, end_date)
 
-    # Exclude GDP (target variable) from the predictor list
+    # exclude gdp from the predictor list
     predictors = df.columns.difference(exclude)
 
     months_to_forecast = record_months_to_forecast(df, predictors)
     print(months_to_forecast)
 
     for col in predictors:
-        if col in months_to_forecast and months_to_forecast[col]:  # Check if there are months to forecast
-            end_month = min(months_to_forecast[col])  # Earliest missing month (YYYY-MM string)
-            start_month = max(months_to_forecast[col])    # Latest missing month (YYYY-MM string)
+        if col in months_to_forecast and months_to_forecast[col]:
+            end_month = min(months_to_forecast[col])  # earliest missing month 
+            start_month = max(months_to_forecast[col])    # latest missing month 
             print(start_month, end_month)
 
             indic_data = df[col].dropna()
-
-            # Find the last known data point's index
 
             # Determine forecast start and end indices (relative to training data)
             forecast_start = 0
