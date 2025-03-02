@@ -8,25 +8,31 @@ import os
 # Add the Backend folder to the system path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 # Import the functions from make_stationary.py
-from make_stationary import is_stationary, make_stationary
+from data_processing import is_stationary, make_stationary
 
 # Load dataset
 file_path = "test_macro_data.csv" 
 data = pd.read_csv(file_path, parse_dates=["date"])
 data["date"] = pd.to_datetime(data["date"], format="%Y-%m")
 
+data["GDP"] = data["GDP"].shift(1) #shift gdp values down to correct quarter
+
+
 #drop rows with no gdp values
 data = data.dropna(subset=["GDP"]) 
-
-#drop date column
-data.drop(columns= "date", inplace= True) 
 
 #back fill NANs for indicators
 data.fillna(method='bfill', inplace=True)  
 
-data_stationary, diff_counts = make_stationary(data)
+data = data.sort_values(by="date", ascending=True) #arrange in descending date order for differencing
 
-#drop 3 NA rows
+#drop date column
+data.drop(columns= "date", inplace= True) 
+
+
+data_stationary, diff_counts = make_stationary(data)
+print(data_stationary)
+#drop 2 NA rows
 data_stationary.dropna(inplace=True) 
 
 # Define features (X) and target (y)
@@ -91,3 +97,4 @@ final_selected_features = sorted_features[:optimal_feature_count]
 
 print("Final selected indicators (based on AIC):")
 print(final_selected_features.tolist())
+
