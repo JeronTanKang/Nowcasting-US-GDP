@@ -8,7 +8,7 @@ import os
 # Add the Backend folder to the system path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 # Import the functions from make_stationary.py
-from make_stationary import is_stationary, make_stationary
+from data_processing import is_stationary, make_stationary
 
 # Load dataset
 file_path = "test_macro_data.csv" 
