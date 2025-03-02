@@ -31,7 +31,7 @@ data.drop(columns= "date", inplace= True)
 
 
 data_stationary, diff_counts = make_stationary(data)
-print(data_stationary)
+
 #drop 2 NA rows
 data_stationary.dropna(inplace=True) 
 
