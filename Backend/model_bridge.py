@@ -90,37 +90,31 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
 
     for col in predictors:
         if col in months_to_forecast and months_to_forecast[col]:
-            end_month = min(months_to_forecast[col])  # earliest missing month 
-            start_month = max(months_to_forecast[col])    # latest missing month 
-            print(start_month, end_month)
+            #end_month = min(months_to_forecast[col])  # earliest missing month 
+            #start_month = max(months_to_forecast[col])    # latest missing month 
+            #print(start_month, end_month)
 
             indic_data = df[col].dropna()
 
-            # Determine forecast start and end indices (relative to training data)
+            # forecast start and end indices
             forecast_start = 0
             forecast_end = forecast_start + len(months_to_forecast[col]) - 1
+            print(f"{col}:  forecasting from {forecast_start} to {forecast_end}")
 
-
-            #print(f"{col}:  forecasting from {forecast_start} to {forecast_end}")
-
-            # Fit AutoReg model
+            # fit AR model
             indic_data = indic_data.sort_index(ascending=True)
             final_model = AutoReg(indic_data, lags=5).fit()
 
-            # Predict missing values using AutoReg
             predicted_values = final_model.predict(start=forecast_start, end=forecast_end)
             #print("predicted_values:", predicted_values)
 
-            # Store predictions in DataFrame format
             predicted_series = pd.Series(predicted_values.values, index=pd.to_datetime(months_to_forecast[col]))
             df.update(predicted_series.to_frame(name=col))
-
-
-    #df_temp = df_temp.reindex(df.index)  
-    #df_temp.update(df) 
-    df = df.reset_index()  # Moves the index to a column
-    df.rename(columns={"index": "date"}, inplace=True)  # Renames the new column to "date"
-    df = df.set_index('date')
+ 
+    # standardizing the index of the output dataframe for modular usage
+    df = df.reset_index()  # move index to a col
+    df.rename(columns={"index": "date"}, inplace=True)  # rename that col to date
+    df = df.set_index('date') # set date as index
     return df
 
 
@@ -137,26 +131,24 @@ def fit_ols_model(df):
     """
 
     df = df.set_index('date')
-    # Drop rows where GDP is missing
-    df = df.dropna(subset=['GDP'])
+
+    # do i need this safety check?
+    #df = df.dropna(subset=['GDP'])
 
 
-    # Forward-fill missing values in indicators
-    df = df.fillna(method='ffill')  # Fills NaNs with the last available value
+    # Forward-fill missing values in indicators (just in case)
+    df = df.fillna(method='ffill') 
 
     #print(df)
 
-    # Define dependent (Y) and independent variables (X)
-    Y = df['GDP']  # GDP is the dependent variable
-    X = df.drop(columns=['GDP'])  # Drop GDP, keep indicators
+    Y = df['GDP']  
+    X = df.drop(columns=['GDP']) 
 
-    # Add constant for the intercept term
+    # add constant for the intercept term
     X = sm.add_constant(X)
 
-    # Fit the OLS model
     model = sm.OLS(Y, X).fit()
 
-    # Print model summary
     print(model.summary())
     
     return model
@@ -164,18 +156,18 @@ def fit_ols_model(df):
 
 def model_bridge(df):
 
-    # note: how should gdp and indicators enter this fn? as a single df?
-
-    # indicators in model_bridge will always be monthly frequency. 
-    # they will only be converted to quarterly frequency when fitting the model to estimate coefficients, and when predicting nowcast
+    """
+    indicators in model_bridge will always be monthly frequency. 
+    they will only be converted to quarterly frequency when fitting the model to estimate coefficients, and when predicting nowcast (using aggregate_indicators)
+    """
 
     df_temp = df.copy()
 
+    # just ensuring index is datetime object
     df['date'] = pd.to_datetime(df['date'], format="%Y-%m")
     df = df.set_index('date')
 
     # step 1: fit ols on quarterly data
-
     ols_model = fit_ols_model(aggregate_indicators(df))
 
     # step 2: for loop to forecast values for each indicator
