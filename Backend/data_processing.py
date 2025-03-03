@@ -49,17 +49,28 @@ def aggregate_indicators(df):
 
 
     aggregation_rule = {
-        "Industrial_Production": "mean", # index take avg
-        "Retail_Sales": "sum", 
-        "Nonfarm_Payrolls": "sum", 
-        "Trade_Balance": "sum",  
-        "Core_PCE": "exp_almon", # for inflation trends
-        "Unemployment": "mean",  # rate take an avg
+        "CPI": "exp_almon", #inflation trend
+        "Crude Oil": "mean", #price so take average
         "Interest_Rate": "mean",  # rate take an avg
-        "Three_Month_Treasury_Yield": "mean",  # rate take an avg
-        "Construction_Spending": "sum",  
+        "Unemployment": "mean",  # rate take an avg
+        "Trade_Balance": "sum",
+        "Retail_Sales" : "sum",
         "Housing_Starts": "sum",  
         "Capacity_Utilization": "mean",  #rate take an avg
+        "Industrial_Production": "mean", # index take avg
+        "Nonfarm_Payrolls": "sum", 
+        "PPI": "mean", #index 
+        "Core_PCE": "exp_almon", # for inflation trends
+        "New_Orders_Durable_Goods": "sum",
+        "Three_Month_Treasury_Yield": "mean",  # rate take an avg
+        "Consumer_Confidence_Index" : "mean", # index
+        "New_Home_Sales": "sum",
+        "Business_Inventories": "mean",
+        "Construction_Spending": "sum",
+        "Wholesale_Inventories": "mean",
+        "Personal_Income": "mean"
+        
+
     }
 
     gdp_data = df[['GDP']].resample('Q').last()  # extract the last available GDP value per quarter
