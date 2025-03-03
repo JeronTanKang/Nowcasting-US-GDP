@@ -75,7 +75,7 @@ def aggregate_indicators(df):
 
     indicators_data = pd.DataFrame()
 
-    for col, method in aggregation_rule.items():
+    for col, method in aggregation_rule.items(): # for loop should go through cols in df instead 
         if method == "mean":
             indicators_data[col] = df[col].resample('Q').mean()  
         elif method == "sum":
