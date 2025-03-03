@@ -50,7 +50,7 @@ def aggregate_indicators(df):
 
     aggregation_rule = {
         "CPI": "exp_almon", #inflation trend
-        "Crude Oil": "mean", #price so take average
+        "Crude_Oil": "mean", #price so take average
         "Interest_Rate": "mean",  # rate take an avg
         "Unemployment": "mean",  # rate take an avg
         "Trade_Balance": "sum",
