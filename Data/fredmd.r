@@ -61,7 +61,29 @@ final_data <- final_data %>%
          Construction_Spending,
          Wholesale_Inventories, Personal_Income, AAA, BAA, yield_spread
   ) %>% mutate(junk_bond_spread = BAA - AAA) %>% select(-AAA) %>% select(-BAA) %>%
-  arrange(desc(date))
+  arrange(desc(date)) %>% mutate(GDP = lag(GDP,1))
 
 
-write.csv(final_data, "../test_macro_data.csv", row.names = FALSE)
+# Function to create lagged variables
+lag_features <- function(data, lags = 4) {
+  data %>%
+    mutate(across(
+      .cols = -date,  # Exclude the date column
+      .fns = list(
+        lag1 = ~ lag(., 1),
+        lag2 = ~ lag(., 2),
+        lag3 = ~ lag(., 3),
+        lag4 = ~ lag(., 4)
+      ),
+      .names = "{.col}_{.fn}"  # Naming format: "GDP_lag1", "CPI_lag2", etc.
+    ))
+}
+
+# Apply the function to your dataset
+df_lagged <- lag_features(final_data, lags = 4)
+
+
+
+
+
+write.csv(df_lagged, "../fred_data_4_lags.csv", row.names = FALSE)
