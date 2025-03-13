@@ -33,7 +33,10 @@ variables <- list(
   "Business_Inventories" = "BUSINV",
   "Construction_Spending" = "TTLCONS",
   "Wholesale_Inventories" = "WHLSLRIMSA",
-  "Personal_Income" = "DSPIC96"
+  "Personal_Income" = "DSPIC96",
+  "AAA" = "AAA",
+  "BAA" = "BAA",
+  "yield_spread" = "T10Y3MM"
   
 )
 
@@ -56,8 +59,8 @@ final_data <- final_data %>%
          New_Orders_Durable_Goods, Three_Month_Treasury_Yield,
          Consumer_Confidence_Index, New_Home_Sales, Business_Inventories,
          Construction_Spending,
-         Wholesale_Inventories, Personal_Income
-  ) %>%
+         Wholesale_Inventories, Personal_Income, AAA, BAA, yield_spread
+  ) %>% mutate(junk_bond_spread = BAA - AAA) %>% select(-AAA) %>% select(-BAA) %>%
   arrange(desc(date))
 
 
