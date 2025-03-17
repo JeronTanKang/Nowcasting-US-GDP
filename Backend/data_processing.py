@@ -120,6 +120,5 @@ def aggregate_indicators(df):
     return quarterly_df
 
 
-print(aggregate_indicators(df))
 
 
