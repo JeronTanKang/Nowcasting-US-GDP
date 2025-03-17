@@ -246,3 +246,17 @@ selected_vars <- coeff_df %>%
 print(selected_vars)
 #chosen indicators: Nonfarm_Payrolls_lag1, Retail_Sales_lag1, Industrial_Production_lag1, Housing_Starts_lag1, New_Orders_Durable_Goods_lag1, Unemployment_lag1    
 
+
+
+# creating new df with chosen indicators
+gdp_df <- final_data %>% select(year_quarter, GDP) %>% rename(raw_GDP = GDP)
+chosen_indicators <- df_lagged %>% select(year_quarter, GDP, GDP_lag1, GDP_lag2, yield_spread, 
+                                 yield_spread_lag1, yield_spread_lag2, junk_bond_spread, junk_bond_spread_lag1,
+                                 junk_bond_spread_lag2, Nonfarm_Payrolls_lag1, Retail_Sales_lag1,
+                                 Industrial_Production_lag1, Housing_Starts_lag1, New_Orders_Durable_Goods_lag1,
+                                 Unemployment_lag1
+                                 ) 
+
+final_df <- left_join(gdp_df, chosen_indicators, by = "year_quarter") %>% arrange(desc(year_quarter))
+
+write.csv(final_df, "final_df.csv", row.names = FALSE)
