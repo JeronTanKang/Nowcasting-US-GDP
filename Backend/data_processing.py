@@ -119,11 +119,7 @@ def aggregate_indicators(df):
 
     return quarterly_df
 
-# test aggregate_indicators
-file_path = "../Data/lasso_indicators.csv"
-df = pd.read_csv(file_path)
-df['date'] = pd.to_datetime(df['date'], format="%Y-%m")
-df = df.set_index('date')
+
 print(aggregate_indicators(df))
 
 
