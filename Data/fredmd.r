@@ -4,6 +4,10 @@ library(tidyr)
 library(purrr)
 library(zoo) 
 library(lubridate)
+library(data.table)
+library(hdm)
+library(glmnet)
+library(forecast)
 
 
 # Set FRED API key
@@ -142,7 +146,47 @@ aggregate_indicators <- function(df) {
                 
               
 final_data <- aggregate_indicators(final_data) 
-final_data <- final_data %>% arrange(desc(year_quarter)) #arrange in desc date order
+final_data <- final_data %>% arrange((year_quarter)) #arrange in asc date order
+
+#making data stationary (ndiffs uses KPSS test by default)
+
+# Create an empty list to store differencing orders
+diff_orders <- c()
+
+# Loop through each column exluding date
+for (col in colnames(final_data)) {
+  if (col != "year_quarter") {  
+    
+      # Find the number of differences needed for each indicator
+      order <- ndiffs(final_data[[col]], test = "adf")  #use adf test
+    
+      # Store the differencing order
+      diff_orders[col] <- order
+    }
+  }
+
+# Create a copy of the dataset
+data_stationary <- final_data
+
+# Apply differencing column by column
+for (col in colnames(final_data)) {
+  if (col != "year_quarter" && col %in% names(diff_orders)) {  # Skip date column
+    
+    # Get the differencing order for this column
+    order <- diff_orders[col]
+    
+    # Apply differencing only if needed
+    if (order > 0) {
+      data_stationary[[col]] <- c(rep(NA, order), diff(final_data[[col]], differences = order))
+    }
+  }
+}
+
+
+data_stationary <- data_stationary %>% arrange(desc(year_quarter)) %>% 
+                                                 mutate(across(-year_quarter, ~ as.numeric(scale(.)))) #arrange in desc date order
+                                               
+
 
 
 
@@ -151,25 +195,54 @@ final_data <- final_data %>% arrange(desc(year_quarter)) #arrange in desc date o
 
 
 # Function to create lagged variables
-lag_features <- function(data, lags = 4) {
+lag_features <- function(data, lags = 2) {
   data %>%
     mutate(across(
       .cols = -year_quarter,  # Exclude the date column
       .fns = list(
         lag1 = ~ lag(., 1),
-        lag2 = ~ lag(., 2),
-        lag3 = ~ lag(., 3),
-        lag4 = ~ lag(., 4)
+        lag2 = ~ lag(., 2)
+        #lag3 = ~ lag(., 3),
+        #lag4 = ~ lag(., 4)
       ),
       .names = "{.col}_{.fn}"  # Naming format: "GDP_lag1", "CPI_lag2", etc.
     ))
 }
 
+
+
+
+
 # Apply the function to your dataset
-df_lagged <- lag_features(final_data, lags = 4)
-df_lagged <- df_lagged %>% slice(-n()) #remove last row too many NANs
+df_lagged <- lag_features(data_stationary, lags = 2)
+
+
+#running LASSO to identify important indicators
+df_lasso <- df_lagged %>% drop_na() # 8 obs dropped - first 4 and last 2
 
 
 
+#y variable
+y <- df_lasso$GDP
 
-write.csv(df_lagged, "../fred_data_4_lags.csv", row.names = FALSE)
+#indicators in matrix form
+x <- df_lasso %>% select(-c(year_quarter, GDP))
+
+lasso_model <- rlasso(x, y, post = TRUE)
+
+
+
+lasso_coeffs <- coef(lasso_model)
+
+# Convert to a data frame
+coeff_df <- data.frame(variable = names(lasso_coeffs), coefficient = as.numeric(lasso_coeffs))
+
+# Remove intercept (if present) and filter non-zero coefficients
+selected_vars <- coeff_df %>%
+  filter(coefficient != 0, variable != "(Intercept)") %>%
+  arrange(desc(coefficient))  # Sorting in descending order
+
+# Print sorted coefficients
+print(selected_vars)
+#chosen indicators: Nonfarm_Payrolls_lag1, Retail_Sales_lag1, Industrial_Production_lag1, Housing_Starts_lag1, New_Orders_Durable_Goods_lag1, Unemployment_lag1    
+
