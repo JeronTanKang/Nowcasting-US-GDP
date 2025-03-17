@@ -65,7 +65,7 @@ def model_AR(df, target_variable: str = "GDP"):
 
 
 if __name__ == "__main__":
-    file_path = "../Data/test_macro_data.csv"
+    file_path = "../Data/lasso_indicators.csv"
     df = pd.read_csv(file_path)
     next_gdp = model_AR(df)
     
