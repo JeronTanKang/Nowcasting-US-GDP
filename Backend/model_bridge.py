@@ -40,7 +40,8 @@ def record_months_to_forecast(df, predictors):
             #print(next_date)
 
             # iterate forward until reach the last date in df
-            while next_date in df.index and pd.isna(df.loc[next_date, col]):
+            #while next_date in df.index and pd.isna(df.loc[next_date, col]):
+            while next_date in df.index.to_list() and pd.isna(df.loc[next_date, col]):
                 months_to_forecast[col].append(next_date)
                 next_date = (pd.to_datetime(next_date) + pd.DateOffset(months=1)).strftime('%Y-%m')
 
@@ -61,7 +62,7 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
     today_dt_object = datetime.today().replace(day=1)
     today = today_dt_object.strftime('%Y-%m')
     #print("PRINTING FROM forecast_indicators",df)
-    print("TODAY MONTH:", today_dt_object.month)
+    #print("TODAY MONTH:", today_dt_object.month)
 
     month_offset = (today_dt_object.month - 1) % 3  
     months_to_add = [today_dt_object + pd.DateOffset(months=i+1) for i in range(2 - month_offset)]
@@ -74,19 +75,19 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
         df = pd.concat([df, new_rows]).sort_index(ascending=False)
 
 
-    print(f" Added rows: {months_to_add}")
+    #print(f" Added rows: {months_to_add}")
 
     # months we will be forecasting data with AR(p)
     end_date = today
     start_date = (datetime.today().replace(day=1) - pd.DateOffset(months=3)).strftime('%Y-%m')
 
-    print("PRINT DATES:", start_date, end_date)
+    #print("PRINT DATES:", start_date, end_date)
 
     # exclude gdp from the predictor list
     predictors = df.columns.difference(exclude)
 
     months_to_forecast = record_months_to_forecast(df, predictors)
-    print(months_to_forecast)
+    #print(months_to_forecast)
 
     for col in predictors:
         if col in months_to_forecast and months_to_forecast[col]:
@@ -197,7 +198,7 @@ def model_bridge(df):
     # date to datetime format
     #nowcast_df["date"] = pd.to_datetime(nowcast_df["date"], format="%Y-%m")
 
-    print(predictors)
+    #print(predictors)
     return nowcast_df
     pass
 
