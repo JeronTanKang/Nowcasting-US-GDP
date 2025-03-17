@@ -32,6 +32,29 @@ def make_stationary(df, max_diff=2):
 
     return df_stationary, differenced_counts 
 
+def exp_almon_weighted(series, alpha=0.9):
+    """
+    Applies an Exponential Almon transformation for weighted aggregation.
+    - Recent values get higher weights.
+
+    Args:
+    - series (pd.Series): Time series data to transform.
+    - alpha (float): Decay factor (0 < alpha < 1, closer to 1 gives more weight to recent values).
+
+    Returns:
+    - float: Weighted aggregated value.
+    """
+
+    # remove nans to prevent div by zero
+    series = series.dropna().to_numpy()  
+
+    if len(series) == 0:  
+        return np.nan
+
+    weights = np.array([alpha ** i for i in range(len(series))][::-1])  
+
+    return np.sum(series * weights) / np.sum(weights)  
+
 
 def aggregate_indicators(df):
     """
@@ -75,13 +98,20 @@ def aggregate_indicators(df):
 
     indicators_data = pd.DataFrame()
 
-    for col, method in aggregation_rule.items(): # for loop should go through cols in df instead 
-        if method == "mean":
-            indicators_data[col] = df[col].resample('Q').mean()  
-        elif method == "sum":
-            indicators_data[col] = df[col].resample('Q').sum() 
-        elif method == "exp_almon":
-            indicators_data[col] = df[col].resample('Q').apply(exp_almon_weighted) 
+    df_indicators = df.drop(columns=["GDP"])
+
+    for col in df_indicators.columns:  
+        if col in aggregation_rule:
+            method = aggregation_rule[col]
+            if method == "mean":
+                indicators_data[col] = df_indicators[col].resample('Q').mean()
+            elif method == "sum":
+                indicators_data[col] = df_indicators[col].resample('Q').sum()
+            elif method == "exp_almon":
+                indicators_data[col] = df_indicators[col].resample('Q').apply(exp_almon_weighted)
+        else:
+            # Default to 'mean' for columns not listed in aggregation_rule
+            indicators_data[col] = df_indicators[col].resample('Q').mean()
 
     quarterly_df = gdp_data.merge(indicators_data, left_index=True, right_index=True, how='left')
     quarterly_df = quarterly_df.reset_index()
@@ -89,27 +119,11 @@ def aggregate_indicators(df):
 
     return quarterly_df
 
+# test aggregate_indicators
+file_path = "../Data/lasso_indicators.csv"
+df = pd.read_csv(file_path)
+df['date'] = pd.to_datetime(df['date'], format="%Y-%m")
+df = df.set_index('date')
+print(aggregate_indicators(df))
 
 
-def exp_almon_weighted(series, alpha=0.9):
-    """
-    Applies an Exponential Almon transformation for weighted aggregation.
-    - Recent values get higher weights.
-
-    Args:
-    - series (pd.Series): Time series data to transform.
-    - alpha (float): Decay factor (0 < alpha < 1, closer to 1 gives more weight to recent values).
-
-    Returns:
-    - float: Weighted aggregated value.
-    """
-
-    # remove nans to prevent div by zero
-    series = series.dropna().to_numpy()  
-
-    if len(series) == 0:  
-        return np.nan
-
-    weights = np.array([alpha ** i for i in range(len(series))][::-1])  
-
-    return np.sum(series * weights) / np.sum(weights)  
