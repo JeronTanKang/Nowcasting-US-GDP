@@ -178,13 +178,27 @@ def model_bridge(df):
     quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) # aggregate to quartlerly
 
 
-    #predictors = quarterly_indicators_forecasted.drop(columns=['GDP'], errors='ignore')
+    predictors = quarterly_indicators_forecasted.drop(columns=['GDP'], errors='ignore')
+
+    #print(ols_model.summary())
+    predictors = sm.add_constant(predictors, has_constant='add')  
     #print(predictors.dtypes)
+
+
+    date_column = predictors["date"].copy()
+    predictors = predictors.drop(columns=["date"])
+
+    #print(predictors)
     
-    #nowcast_gdp = ols_model.predict(predictors)
+    nowcast_gdp = ols_model.predict(predictors)
 
+    nowcast_df = pd.DataFrame({"date": date_column, "Nowcasted_GDP": nowcast_gdp.values})
 
-    return quarterly_indicators_forecasted
+    # date to datetime format
+    #nowcast_df["date"] = pd.to_datetime(nowcast_df["date"], format="%Y-%m")
+
+    print(predictors)
+    return nowcast_df
     pass
 
 
