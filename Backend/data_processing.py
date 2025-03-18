@@ -71,7 +71,7 @@ def aggregate_indicators(df):
 
     df = df.set_index('date')
 
-    print("THIS IS WHAT WORKS FOR aggregate_indicators", df)
+    #print("THIS IS WHAT WORKS FOR aggregate_indicators", df)
 
     aggregation_rule = {
         #"CPI": "exp_almon", #inflation trend

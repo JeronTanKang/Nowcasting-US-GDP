@@ -23,6 +23,10 @@ def record_months_to_forecast(df, predictors):
     Returns:
     - dict: A dictionary where keys are predictor names and values are lists of months to forecast.
     """
+    
+    # TRY THIS
+    print("input to record months:", df)
+    #df = df.set_index('date')
 
     months_to_forecast = {}  # dict to store missing months for each predictor
 
@@ -47,9 +51,43 @@ def record_months_to_forecast(df, predictors):
 
     return months_to_forecast
 
+def record_months_to_forecast(df, predictors):
+    """
+    Identifies months that need forecasting for each predictor.
+
+    Args:
+    - df (pd.DataFrame): DataFrame with dates as index and predictors as columns.
+    - predictors (list): List of predictor variable names.
+
+    Returns:
+    - dict: A dictionary where keys are predictor names and values are lists of months to forecast.
+    """
+    
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index)
+
+    print("input to record months:", df)
+
+    months_to_forecast = {}  # Dict to store missing months for each predictor
+
+    for col in predictors:
+        months_to_forecast[col] = [] 
+
+        last_known_index = df[col].dropna().index.max() if df[col].dropna().size > 0 else None
+
+        if last_known_index:
+            last_known_date = pd.to_datetime(last_known_index)  # Ensure it's datetime
+
+            next_date = last_known_date + pd.DateOffset(months=1)
+
+            while next_date in df.index and pd.isna(df.loc[next_date, col]):
+                months_to_forecast[col].append(next_date)  # Store as datetime
+                next_date += pd.DateOffset(months=1)
+
+    return months_to_forecast
+
 def forecast_indicators(df, exclude=["date", "GDP"]):
     df = df.set_index("date") 
-    df_temp = df.copy()
 
     """ 
     Handles missing values only for predictor variables (not GDP).
@@ -59,23 +97,28 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
     - Works column by column, excluding GDP (Y variable).
     """
 
+
+    #HARDCODE COS CURRENTLY USING STATIC DATASET
+    #today_dt_object = datetime.today().replace(day=1) - pd.DateOffset(months=1)
     today_dt_object = datetime.today().replace(day=1)
+
     today = today_dt_object.strftime('%Y-%m')
     #print("PRINTING FROM forecast_indicators",df)
-    #print("TODAY MONTH:", today_dt_object.month)
+    #print("TODAY MONTH:", today_dt_object)
 
     month_offset = (today_dt_object.month - 1) % 3  
     months_to_add = [today_dt_object + pd.DateOffset(months=i+1) for i in range(2 - month_offset)]
-    
+
     # add months not already in the index to make up the current quarter
-    months_to_add = [date.strftime('%Y-%m') for date in months_to_add if date.strftime('%Y-%m') not in df.index]
-    
+    #months_to_add = [date.strftime('%Y-%m') for date in months_to_add if date.strftime('%Y-%m') not in df.index]
+    months_to_add = [date for date in months_to_add if date not in df.index]
+
     if months_to_add:
         new_rows = pd.DataFrame(index=months_to_add, columns=df.columns)
         df = pd.concat([df, new_rows]).sort_index(ascending=False)
 
 
-    #print(f" Added rows: {months_to_add}")
+    print(f" Added rows: {months_to_add}")
 
     # months we will be forecasting data with AR(p)
     end_date = today
@@ -87,7 +130,7 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
     predictors = df.columns.difference(exclude)
 
     months_to_forecast = record_months_to_forecast(df, predictors)
-    #print(months_to_forecast)
+    print(months_to_forecast)
 
     for col in predictors:
         if col in months_to_forecast and months_to_forecast[col]:
@@ -115,7 +158,7 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
     # standardizing the index of the output dataframe for modular usage
     df = df.reset_index()
     df["date"] = pd.to_datetime(df["date"], format='%Y-%m')
-    print("TAKE A LOOOOK",df)
+    print("reutrned by forecast_indicators",df)
 
     # i want to discard whats below
     # move index to a col
@@ -168,13 +211,13 @@ def model_bridge(df):
     they will only be converted to quarterly frequency when fitting the model to estimate coefficients, and when predicting nowcast (using aggregate_indicators)
     """
     df['date'] = pd.to_datetime(df['date'], format="%Y-%m") # making sure right date time format
-
+    print("ORIGINAL DF", df)
     # just ensuring index is datetime object
 
     # step 1: fit ols on quarterly data
     ols_model = fit_ols_model(aggregate_indicators(df))
 
-
+    print("SECOND ORIGINAL DF", df)
     # step 2: for loop to forecast values for each indicator
     monthly_indicators_forecasted = forecast_indicators(df)
     #print("monthly_indicators_forecasted",monthly_indicators_forecasted)
