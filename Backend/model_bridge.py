@@ -113,9 +113,14 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
             df.update(predicted_series.to_frame(name=col))
  
     # standardizing the index of the output dataframe for modular usage
-    df = df.reset_index()  # move index to a col
-    df.rename(columns={"index": "date"}, inplace=True)  # rename that col to date
-    df = df.set_index('date') # set date as index
+    df = df.reset_index()
+    df["date"] = pd.to_datetime(df["date"], format='%Y-%m')
+    print("TAKE A LOOOOK",df)
+
+    # i want to discard whats below
+    # move index to a col
+    #df.rename(columns={"index": "date"}, inplace=True)  # rename that col to date
+    #df = df.set_index('date') # set date as index
     return df
 
 
@@ -132,6 +137,7 @@ def fit_ols_model(df):
     """
 
     df = df.set_index('date')
+    df = df.iloc[::-1].reset_index(drop=True) # reverse row order
 
     # do i need this safety check?
     #df = df.dropna(subset=['GDP'])
@@ -161,18 +167,17 @@ def model_bridge(df):
     indicators in model_bridge will always be monthly frequency. 
     they will only be converted to quarterly frequency when fitting the model to estimate coefficients, and when predicting nowcast (using aggregate_indicators)
     """
-
-    df_temp = df.copy()
+    df['date'] = pd.to_datetime(df['date'], format="%Y-%m") # making sure right date time format
 
     # just ensuring index is datetime object
-    df['date'] = pd.to_datetime(df['date'], format="%Y-%m")
-    df = df.set_index('date')
 
     # step 1: fit ols on quarterly data
     ols_model = fit_ols_model(aggregate_indicators(df))
 
+
     # step 2: for loop to forecast values for each indicator
-    monthly_indicators_forecasted = forecast_indicators(df_temp)
+    monthly_indicators_forecasted = forecast_indicators(df)
+    #print("monthly_indicators_forecasted",monthly_indicators_forecasted)
 
     # step 3: generate nowcast
     monthly_indicators_forecasted.index = pd.to_datetime(monthly_indicators_forecasted.index)

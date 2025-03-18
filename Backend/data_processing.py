@@ -58,6 +58,8 @@ def exp_almon_weighted(series, alpha=0.9):
 
 def aggregate_indicators(df):
     """
+    THIS FUNCTION IS DIFF FROM THE REST MUST SET DATE AS INDEX NOOOOTTT RANGE INDEX
+
     Function that takes in df with monthly frequency indicators and GDP.
     - Converts indicators to quarterly frequency using specified aggregation rules.
     - GDP remains unchanged (takes the only available value per quarter).
@@ -66,10 +68,10 @@ def aggregate_indicators(df):
     - DataFrame with quarterly frequency.
     """
 
-    # Convert 'date' column to datetime format if not already
-    #df['date'] = pd.to_datetime(df['date'], format="%Y-%m")
-    #df = df.set_index('date')
 
+    df = df.set_index('date')
+
+    print("THIS IS WHAT WORKS FOR aggregate_indicators", df)
 
     aggregation_rule = {
         #"CPI": "exp_almon", #inflation trend
@@ -98,7 +100,11 @@ def aggregate_indicators(df):
 
     indicators_data = pd.DataFrame()
 
-    df_indicators = df.drop(columns=["GDP"])
+    if "date" in df.columns:
+        df_indicators = df.drop(columns=["date", "GDP"], errors="ignore")
+    else:
+        df_indicators = df.drop(columns=["GDP"], errors="ignore")
+    #df_indicators = df.drop(columns=["GDP"])
 
     for col in df_indicators.columns:  
         if col in aggregation_rule:
@@ -115,8 +121,12 @@ def aggregate_indicators(df):
 
     quarterly_df = gdp_data.merge(indicators_data, left_index=True, right_index=True, how='left')
     quarterly_df = quarterly_df.reset_index()
-    quarterly_df['date'] = quarterly_df['date'].dt.strftime('%Y-%m')
+    #quarterly_df['date'] = quarterly_df['date'].dt.strftime('%Y-%m')
+    quarterly_df["date"] = pd.to_datetime(quarterly_df["date"], format='%Y-%m')
 
+    quarterly_df = quarterly_df.iloc[::-1].reset_index(drop=True) # reverse row order before returning
+
+    #print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
     return quarterly_df
 
 
