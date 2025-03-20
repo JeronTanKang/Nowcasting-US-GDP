@@ -56,6 +56,7 @@ fetch_fred_data <- function(series_id, new_name) {
 
 # Fetch data for all variables
 data_list <- lapply(names(variables), function(name) fetch_fred_data(variables[[name]], name))
+
 # Merge all datasets on 'date'
 final_data <- reduce(data_list, full_join, by = "date")
 final_data <- final_data %>% mutate(date = as.Date(paste0(date, "-01"))) %>%
@@ -67,7 +68,7 @@ final_data <- final_data %>% mutate(date = as.Date(paste0(date, "-01"))) %>%
          Construction_Spending,
          Wholesale_Inventories, Personal_Income, AAA, BAA, yield_spread
   ) %>% mutate(junk_bond_spread = BAA - AAA) %>% select(-AAA) %>% select(-BAA) %>%
-  arrange(desc(date)) %>% mutate(GDP = lag(GDP,1))
+  arrange(desc(date))
 
 #add a year_quarter col
 final_data <- final_data %>%
@@ -139,7 +140,7 @@ aggregate_indicators <- function(df) {
   
   
   return(quarterly_df)
-  }
+}
 
           
                 
@@ -150,15 +151,40 @@ final_data <- final_data %>% arrange((year_quarter)) #arrange in asc date order
 
 #making data stationary (ndiffs uses KPSS test by default)
 
+
+
+
+#temp_df to store D1_Unemployment and junk_bond_spread, yield_spread 
+temp_df <- final_data %>% 
+  select(year_quarter, Unemployment, junk_bond_spread, yield_spread) %>% arrange(year_quarter) %>%
+  mutate(Unemployment = c(NA, diff(Unemployment))) %>% arrange(desc(year_quarter))%>% filter(row_number() > 21) %>% arrange(year_quarter) 
+
+"temp_df <- final_data %>% 
+  select(year_quarter, Unemployment, junk_bond_spread, yield_spread) %>% arrange(year_quarter) %>%
+  mutate(Unemployment = c(NA, diff(Unemployment))) %>% arrange(desc(year_quarter)) %>% arrange(year_quarter)" 
+#rest of indicators + GDP make stationary
+df_not_stationary <- final_data %>% select(-c(Unemployment, GDP, junk_bond_spread, yield_spread)) %>% 
+  arrange(desc(year_quarter)) %>% filter(row_number() > 21) %>% arrange(year_quarter)
+
+"df_not_stationary <- final_data %>% select(-c(Unemployment, junk_bond_spread, yield_spread, GDP)) %>% 
+  arrange(desc(year_quarter)) %>% arrange(year_quarter)"
+
+#gdf_df to store create annualised gdp growth rate.
+"gdp_df <- final_data %>% select(year_quarter, GDP) %>% mutate(gdp_lag = lag(GDP)) %>% 
+  mutate(gdp_growth = 400 * (log(GDP) - log(gdp_lag))) %>% select(-gdp_lag) %>% arrange(desc(year_quarter))"
+
+gdp_df <- final_data %>% select(year_quarter, GDP) %>% mutate(gdp_lag = lag(GDP)) %>% 
+  mutate(gdp_growth = 400 * (log(GDP) - log(gdp_lag))) %>% select(-gdp_lag) %>% arrange(desc(year_quarter)) %>%
+  filter(row_number() > 21)
+
 # Create an empty list to store differencing orders
 diff_orders <- c()
-
 # Loop through each column exluding date
-for (col in colnames(final_data)) {
+for (col in colnames(df_not_stationary)) {
   if (col != "year_quarter") {  
     
       # Find the number of differences needed for each indicator
-      order <- ndiffs(final_data[[col]], test = "adf")  #use adf test
+      order <- ndiffs(df_not_stationary[[col]], test = "adf")  #use adf test
     
       # Store the differencing order
       diff_orders[col] <- order
@@ -166,10 +192,10 @@ for (col in colnames(final_data)) {
   }
 
 # Create a copy of the dataset
-data_stationary <- final_data
+data_stationary <- df_not_stationary
 
 # Apply differencing column by column
-for (col in colnames(final_data)) {
+for (col in colnames(df_not_stationary)) {
   if (col != "year_quarter" && col %in% names(diff_orders)) {  # Skip date column
     
     # Get the differencing order for this column
@@ -177,14 +203,14 @@ for (col in colnames(final_data)) {
     
     # Apply differencing only if needed
     if (order > 0) {
-      data_stationary[[col]] <- c(rep(NA, order), diff(final_data[[col]], differences = order))
+      data_stationary[[col]] <- c(rep(NA, order), diff(df_not_stationary[[col]], differences = order))
     }
   }
 }
 
 
-data_stationary <- data_stationary %>% arrange(desc(year_quarter)) %>% 
-                                                 mutate(across(-year_quarter, ~ as.numeric(scale(.)))) #arrange in desc date order
+df_stationary <- gdp_df %>% left_join(data_stationary, by = "year_quarter") %>% left_join(temp_df, by = "year_quarter") %>% arrange(year_quarter) %>% 
+                                                 mutate(across(-c(year_quarter, GDP, gdp_growth), ~ as.numeric(scale(.)))) #arrange in desc date order
                                                
 
 
@@ -193,17 +219,16 @@ data_stationary <- data_stationary %>% arrange(desc(year_quarter)) %>%
 
 
 
-
 # Function to create lagged variables
-lag_features <- function(data, lags = 2) {
+lag_features <- function(data, lags = 4) {
   data %>%
     mutate(across(
       .cols = -year_quarter,  # Exclude the date column
       .fns = list(
         lag1 = ~ lag(., 1),
-        lag2 = ~ lag(., 2)
-        #lag3 = ~ lag(., 3),
-        #lag4 = ~ lag(., 4)
+        lag2 = ~ lag(., 2),
+        lag3 = ~ lag(., 3),
+        lag4 = ~ lag(., 4)
       ),
       .names = "{.col}_{.fn}"  # Naming format: "GDP_lag1", "CPI_lag2", etc.
     ))
@@ -214,21 +239,28 @@ lag_features <- function(data, lags = 2) {
 
 
 # Apply the function to your dataset
-df_lagged <- lag_features(data_stationary, lags = 2)
+df_lagged <- lag_features(df_stationary, lags = 4) %>% arrange(desc(year_quarter)) %>% 
+  select(-c(GDP_lag1, GDP_lag2, GDP_lag3, GDP_lag4))
 
 
 #running LASSO to identify important indicators
-df_lasso <- df_lagged %>% drop_na() # 8 obs dropped - first 4 and last 2
+df_lasso <- df_lagged %>% drop_na()  %>% arrange(year_quarter)# 8 obs dropped - first 4 and last 2
 
+"df_lasso <- df_lasso %>% select(-c(CPI, Crude_Oil, Interest_Rate, Trade_Balance, Retail_Sales,
+                                   Housing_Starts, Capacity_Utilization, Industrial_Production, Nonfarm_Payrolls,
+                                   PPI, Core_PCE, New_Orders_Durable_Goods, Three_Month_Treasury_Yield,
+                                   Consumer_Confidence_Index, New_Home_Sales, Business_Inventories,
+                                   Construction_Spending, Wholesale_Inventories,Personal_Income, Unemployment,
+                                   junk_bond_spread, yield_spread)) #robustness test"
 
 
 #y variable
-y <- df_lasso$GDP
+y <- df_lasso$gdp_growth
 
 #indicators in matrix form
-x <- df_lasso %>% select(-c(year_quarter, GDP))
+x <- df_lasso %>% select(-c(year_quarter, GDP, gdp_growth))
 
-lasso_model <- rlasso(x, y, post = TRUE)
+lasso_model <- rlasso(x, y, post = FALSE)
 
 
 
@@ -244,19 +276,6 @@ selected_vars <- coeff_df %>%
 
 # Print sorted coefficients
 print(selected_vars)
-#chosen indicators: Nonfarm_Payrolls_lag1, Retail_Sales_lag1, Industrial_Production_lag1, Housing_Starts_lag1, New_Orders_Durable_Goods_lag1, Unemployment_lag1    
 
 
 
-# creating new df with chosen indicators
-gdp_df <- final_data %>% select(year_quarter, GDP) %>% rename(raw_GDP = GDP)
-chosen_indicators <- df_lagged %>% select(year_quarter, GDP, GDP_lag1, GDP_lag2, yield_spread, 
-                                 yield_spread_lag1, yield_spread_lag2, junk_bond_spread, junk_bond_spread_lag1,
-                                 junk_bond_spread_lag2, Nonfarm_Payrolls_lag1, Retail_Sales_lag1,
-                                 Industrial_Production_lag1, Housing_Starts_lag1, New_Orders_Durable_Goods_lag1,
-                                 Unemployment_lag1
-                                 ) 
-
-final_df <- left_join(gdp_df, chosen_indicators, by = "year_quarter") %>% arrange(desc(year_quarter))
-
-write.csv(final_df, "final_df.csv", row.names = FALSE)
