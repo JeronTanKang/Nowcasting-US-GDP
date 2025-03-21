@@ -149,36 +149,33 @@ aggregate_indicators <- function(df) {
 final_data <- aggregate_indicators(final_data) 
 final_data <- final_data %>% arrange((year_quarter)) #arrange in asc date order
 
-#making data stationary (ndiffs uses KPSS test by default)
 
 
 
 
-#temp_df to store D1_Unemployment and junk_bond_spread, yield_spread 
+
+#temp_df to store D1_Unemployment and junk_bond_spread, yield_spread (remove obs after covid)
 temp_df <- final_data %>% 
   select(year_quarter, Unemployment, junk_bond_spread, yield_spread) %>% arrange(year_quarter) %>%
   mutate(Unemployment = c(NA, diff(Unemployment))) %>% arrange(desc(year_quarter))%>% filter(row_number() > 21) %>% arrange(year_quarter) 
 
-"temp_df <- final_data %>% 
-  select(year_quarter, Unemployment, junk_bond_spread, yield_spread) %>% arrange(year_quarter) %>%
-  mutate(Unemployment = c(NA, diff(Unemployment))) %>% arrange(desc(year_quarter)) %>% arrange(year_quarter)" 
-#rest of indicators + GDP make stationary
+
+#rest of indicators 
 df_not_stationary <- final_data %>% select(-c(Unemployment, GDP, junk_bond_spread, yield_spread)) %>% 
   arrange(desc(year_quarter)) %>% filter(row_number() > 21) %>% arrange(year_quarter)
 
-"df_not_stationary <- final_data %>% select(-c(Unemployment, junk_bond_spread, yield_spread, GDP)) %>% 
-  arrange(desc(year_quarter)) %>% arrange(year_quarter)"
+
 
 #gdf_df to store create annualised gdp growth rate.
-"gdp_df <- final_data %>% select(year_quarter, GDP) %>% mutate(gdp_lag = lag(GDP)) %>% 
-  mutate(gdp_growth = 400 * (log(GDP) - log(gdp_lag))) %>% select(-gdp_lag) %>% arrange(desc(year_quarter))"
-
 gdp_df <- final_data %>% select(year_quarter, GDP) %>% mutate(gdp_lag = lag(GDP)) %>% 
   mutate(gdp_growth = 400 * (log(GDP) - log(gdp_lag))) %>% select(-gdp_lag) %>% arrange(desc(year_quarter)) %>%
   filter(row_number() > 21)
 
-# Create an empty list to store differencing orders
+
+#create an empty list to store differencing orders
 diff_orders <- c()
+
+#making data stationary (ndiffs uses KPSS test by default)
 # Loop through each column exluding date
 for (col in colnames(df_not_stationary)) {
   if (col != "year_quarter") {  
@@ -208,13 +205,10 @@ for (col in colnames(df_not_stationary)) {
   }
 }
 
-
+#join the 3 dfs together and scale indicators except gdp_growth
 df_stationary <- gdp_df %>% left_join(data_stationary, by = "year_quarter") %>% left_join(temp_df, by = "year_quarter") %>% arrange(year_quarter) %>% 
                                                  mutate(across(-c(year_quarter, GDP, gdp_growth), ~ as.numeric(scale(.)))) #arrange in desc date order
                                                
-
-
-
 
 
 
@@ -236,8 +230,6 @@ lag_features <- function(data, lags = 4) {
 
 
 
-
-
 # Apply the function to your dataset
 df_lagged <- lag_features(df_stationary, lags = 4) %>% arrange(desc(year_quarter)) %>% 
   select(-c(GDP_lag1, GDP_lag2, GDP_lag3, GDP_lag4))
@@ -246,12 +238,6 @@ df_lagged <- lag_features(df_stationary, lags = 4) %>% arrange(desc(year_quarter
 #running LASSO to identify important indicators
 df_lasso <- df_lagged %>% drop_na()  %>% arrange(year_quarter)# 8 obs dropped - first 4 and last 2
 
-"df_lasso <- df_lasso %>% select(-c(CPI, Crude_Oil, Interest_Rate, Trade_Balance, Retail_Sales,
-                                   Housing_Starts, Capacity_Utilization, Industrial_Production, Nonfarm_Payrolls,
-                                   PPI, Core_PCE, New_Orders_Durable_Goods, Three_Month_Treasury_Yield,
-                                   Consumer_Confidence_Index, New_Home_Sales, Business_Inventories,
-                                   Construction_Spending, Wholesale_Inventories,Personal_Income, Unemployment,
-                                   junk_bond_spread, yield_spread)) #robustness test"
 
 
 #y variable
@@ -269,13 +255,14 @@ lasso_coeffs <- coef(lasso_model)
 # Convert to a data frame
 coeff_df <- data.frame(variable = names(lasso_coeffs), coefficient = as.numeric(lasso_coeffs))
 
-# Remove intercept (if present) and filter non-zero coefficients
+# Remove intercept and filter non-zero coefficients
 selected_vars <- coeff_df %>%
-  filter(coefficient != 0, variable != "(Intercept)") %>%
-  arrange(desc(coefficient))  # Sorting in descending order
+  filter(coefficient != 0, variable != "(Intercept)") %>% mutate(Importance = abs(coefficient)) %>%
+  arrange(desc(Importance))  # Sorting in descending order
 
 # Print sorted coefficients
 print(selected_vars)
-
-
+#chosen indicators (in order of importance): 
+#Nonfarm_Payrolls, Construction_Spending, Trade_Balance_lag1 , Industrial_Production_lag3, Housing_Starts,
+#Capacity_Utilization, New_Orders_Durable_Goods, Interest_Rate_lag1, junk_bond_spread_lag1, Unemployment 
 
