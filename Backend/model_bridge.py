@@ -12,6 +12,17 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from data_processing import aggregate_indicators
 
+"""#pd.set_option("display.max_rows", None)
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", None)
+pd.set_option("display.max_colwidth", None)
+"""
+# Reset after printing
+"""pd.reset_option("display.max_rows")
+pd.reset_option("display.max_columns")
+pd.reset_option("display.width")
+pd.reset_option("display.max_colwidth")"""
+
 def record_months_to_forecast(df, predictors):
     """
     Identifies months that need forecasting for each predictor.
@@ -86,7 +97,7 @@ def record_months_to_forecast(df, predictors):
 
     return months_to_forecast
 
-def forecast_indicators(df, exclude=["date", "GDP"]):
+def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag1","gdp_growth_lag2","gdp_growth_lag3","gdp_growth_lag4"]):
     df = df.set_index("date") 
 
     """ 
@@ -98,72 +109,32 @@ def forecast_indicators(df, exclude=["date", "GDP"]):
     """
 
 
-    #HARDCODE COS CURRENTLY USING STATIC DATASET
-    #today_dt_object = datetime.today().replace(day=1) - pd.DateOffset(months=1)
-    today_dt_object = datetime.today().replace(day=1)
-
-    today = today_dt_object.strftime('%Y-%m')
-    #print("PRINTING FROM forecast_indicators",df)
-    #print("TODAY MONTH:", today_dt_object)
-
-    month_offset = (today_dt_object.month - 1) % 3  
-    months_to_add = [today_dt_object + pd.DateOffset(months=i+1) for i in range(2 - month_offset)]
-
-    # add months not already in the index to make up the current quarter
-    #months_to_add = [date.strftime('%Y-%m') for date in months_to_add if date.strftime('%Y-%m') not in df.index]
-    months_to_add = [date for date in months_to_add if date not in df.index]
-
-    if months_to_add:
-        new_rows = pd.DataFrame(index=months_to_add, columns=df.columns)
-        df = pd.concat([df, new_rows]).sort_index(ascending=False)
-
-
-    print(f" Added rows: {months_to_add}")
-
-    # months we will be forecasting data with AR(p)
-    end_date = today
-    start_date = (datetime.today().replace(day=1) - pd.DateOffset(months=3)).strftime('%Y-%m')
-
-    #print("PRINT DATES:", start_date, end_date)
-
-    # exclude gdp from the predictor list
     predictors = df.columns.difference(exclude)
 
+    # Identify which months need to be forecasted for each predictor
     months_to_forecast = record_months_to_forecast(df, predictors)
-    print(months_to_forecast)
+    print("Months to forecast:", months_to_forecast)
 
     for col in predictors:
         if col in months_to_forecast and months_to_forecast[col]:
-            #end_month = min(months_to_forecast[col])  # earliest missing month 
-            #start_month = max(months_to_forecast[col])    # latest missing month 
-            #print(start_month, end_month)
+            indic_data = df[col].dropna().sort_index()
 
-            indic_data = df[col].dropna()
-
-            # forecast start and end indices
             forecast_start = 0
             forecast_end = forecast_start + len(months_to_forecast[col]) - 1
-            print(f"{col}:  forecasting from {forecast_start} to {forecast_end}")
+            print(f"{col}: forecasting from {forecast_start} to {forecast_end}")
 
-            # fit AR model
-            indic_data = indic_data.sort_index(ascending=True)
-            final_model = AutoReg(indic_data, lags=5).fit()
+            try:
+                final_model = AutoReg(indic_data, lags=9, old_names=False).fit()
+                predicted_values = final_model.predict(start=forecast_start, end=forecast_end)
 
-            predicted_values = final_model.predict(start=forecast_start, end=forecast_end)
-            #print("predicted_values:", predicted_values)
+                predicted_series = pd.Series(predicted_values.values, index=pd.to_datetime(months_to_forecast[col]))
+                df.update(predicted_series.to_frame(name=col))
+            except Exception as e:
+                print(f"Could not forecast {col} due to: {e}")
 
-            predicted_series = pd.Series(predicted_values.values, index=pd.to_datetime(months_to_forecast[col]))
-            df.update(predicted_series.to_frame(name=col))
- 
-    # standardizing the index of the output dataframe for modular usage
     df = df.reset_index()
-    df["date"] = pd.to_datetime(df["date"], format='%Y-%m')
-    print("reutrned by forecast_indicators",df)
-
-    # i want to discard whats below
-    # move index to a col
-    #df.rename(columns={"index": "date"}, inplace=True)  # rename that col to date
-    #df = df.set_index('date') # set date as index
+    df = df.sort_values(by="date").reset_index(drop=True)
+    print("Returned by forecast_indicators:", df)
     return df
 
 
@@ -191,8 +162,8 @@ def fit_ols_model(df):
 
     #print(df)
 
-    Y = df['GDP']  
-    X = df.drop(columns=['GDP']) 
+    Y = df['gdp_growth']  
+    X = df.drop(columns=["GDP","gdp_growth", "gdp_growth_lag1", "gdp_growth_lag2"]) 
 
     # add constant for the intercept term
     X = sm.add_constant(X)
@@ -210,50 +181,66 @@ def model_bridge(df):
     indicators in model_bridge will always be monthly frequency. 
     they will only be converted to quarterly frequency when fitting the model to estimate coefficients, and when predicting nowcast (using aggregate_indicators)
     """
-    df['date'] = pd.to_datetime(df['date'], format="%Y-%m") # making sure right date time format
+    df["date"] = pd.to_datetime(df["date"])
     print("ORIGINAL DF", df)
-    # just ensuring index is datetime object
+
+    train_df = df[df["gdp_growth"].notna()].copy()
+    forecast_df = df[df["gdp_growth"].isna()].copy()
+
+    #print("PPPPPPEEEEEEEEKKKKK",df_aggregated)
+
+    # step 1 aggregate
+    # only want to pass into fit_ols_model the train data
+    df_aggregated = aggregate_indicators(df)
+    train_ols = df_aggregated[df_aggregated["gdp_growth"].notna()].copy()
 
     # step 1: fit ols on quarterly data
-    ols_model = fit_ols_model(aggregate_indicators(df))
 
-    print("SECOND ORIGINAL DF", df)
+    #print("PPPPPPEEEEEEEEKKKKK",train_ols)
+    ols_model = fit_ols_model(train_ols)
+    
     # step 2: for loop to forecast values for each indicator
+    # OK DONE FOR STEP 2
     monthly_indicators_forecasted = forecast_indicators(df)
-    #print("monthly_indicators_forecasted",monthly_indicators_forecasted)
+    print("monthly_indicators_forecasted",monthly_indicators_forecasted)
 
     # step 3: generate nowcast
-    monthly_indicators_forecasted.index = pd.to_datetime(monthly_indicators_forecasted.index)
+    #monthly_indicators_forecasted.index = pd.to_datetime(monthly_indicators_forecasted.index)
     quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) # aggregate to quartlerly
 
-
-    predictors = quarterly_indicators_forecasted.drop(columns=['GDP'], errors='ignore')
-
-    #print(ols_model.summary())
+    predictors = quarterly_indicators_forecasted.drop(columns=["date","GDP","gdp_growth", "gdp_growth_lag1", "gdp_growth_lag2"], errors='ignore')
     predictors = sm.add_constant(predictors, has_constant='add')  
-    #print(predictors.dtypes)
 
+    # where mask is the dates to forecast
+    mask = quarterly_indicators_forecasted["gdp_growth"].isna()
+    predictors_to_forecast = predictors[mask]
+    dates_to_forecast = quarterly_indicators_forecasted["date"][mask]
 
-    date_column = predictors["date"].copy()
-    predictors = predictors.drop(columns=["date"])
+    nowcast_growth = ols_model.predict(predictors_to_forecast)
+    #print("OUTCOMES (gdp_growth forecast):", nowcast_growth)
 
-    #print(predictors)
-    
-    nowcast_gdp = ols_model.predict(predictors)
+    # Get last known actual GDP level from training data
+    last_actual_gdp = train_ols["GDP"].dropna().iloc[-1]
 
-    nowcast_df = pd.DataFrame({"date": date_column, "Nowcasted_GDP": nowcast_gdp.values})
+    # Convert nowcasted gdp_growth to GDP level
+    nowcasted_gdp_levels = []
+    for growth in nowcast_growth:
+        next_gdp = last_actual_gdp * np.exp(growth / 400)
+        nowcasted_gdp_levels.append(next_gdp)
+        last_actual_gdp = next_gdp  # update for next step
 
-    # date to datetime format
-    #nowcast_df["date"] = pd.to_datetime(nowcast_df["date"], format="%Y-%m")
+    # Final output DataFrame
+    nowcast_df = pd.DataFrame({
+        "date": pd.to_datetime(dates_to_forecast),
+        "Nowcasted_GDP_Growth": nowcast_growth.values,
+        "Nowcasted_GDP": nowcasted_gdp_levels
+    })
 
-    #print(predictors)
     return nowcast_df
-    pass
 
 
 if __name__ == "__main__":
-    #file_path = "../Data/test_macro_data.csv"
-    file_path = "../Data/lasso_indicators.csv"
+    file_path = "../Data/bridge_df.csv"
     df = pd.read_csv(file_path)
 
     print(model_bridge(df))

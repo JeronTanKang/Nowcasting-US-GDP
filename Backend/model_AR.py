@@ -2,11 +2,18 @@ import numpy as np
 import pandas as pd
 import pmdarima as pm
 from statsmodels.tsa.arima.model import ARIMA
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
+from data_processing import aggregate_indicators
 
 def model_AR(df, target_variable: str = "GDP"):
     """
     Takes a DataFrame of macroeconomic data, trains an AR (AutoRegressive) model, 
     and returns the GDP nowcast for the next time step.
+
+    1. aggregate data to quarterly
+    2. 
 
     Args:
         df (pd.DataFrame): DataFrame containing macroeconomic indicators.
@@ -20,52 +27,53 @@ def model_AR(df, target_variable: str = "GDP"):
     # so that it doesnt have to be run at the start of every model.
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values(by="date")
-    df = df.set_index("date")
-    df = df.dropna(subset=["GDP"])
+    df = df.reset_index(drop=True)
+    #df = df.set_index("date")
 
-    # for testing
-    #df = df.iloc[:-10]
+    # aggregate
+    df = aggregate_indicators(df)
 
-    print(df.tail(10))
+    train_df = df[df["gdp_growth"].notna()].copy()
+    forecast_df = df[df["gdp_growth"].isna()].copy()
 
-    df["GDP_diff"] = df[target_variable].diff()
-
-    # Drop NaN (first row will be NaN due to differencing)
-    df = df.dropna(subset=["GDP_diff"])
-
-    # Prepare training data
-    train_series = df["GDP_diff"]
-
+    train_series = train_df["gdp_growth"]
 
     # Automatically select AR order, forcing MA order to be 0
     model = pm.auto_arima(train_series, seasonal=False, stationary=True, max_order=None, suppress_warnings=True, d=0, q=0)
-    ar_order = model.order[0]  # Extract AR order
+    ar_order = model.order[0]
 
-    # Fit AR model
-    #ar_order = 4
-    print(ar_order)
+    ar_order = 2
+    #print(ar_order)
     ar_model = ARIMA(train_series, order=(ar_order, 0, 0)).fit()
 
-    print("AR Model Coefficients:", ar_model.params)
-    print(ar_model.summary())  
+    #print("AR Model Coefficients:", ar_model.params)
+    #print(ar_model.summary())  
 
-    # Nowcast GDP for the next 2 available quarters
-    gdp_diff_nowcast = ar_model.forecast(steps=2)
+    # generate forecast
+    steps = len(forecast_df)
+    gdp_growth_forecast = ar_model.forecast(steps=steps)
 
-    # Convert differenced predictions back to actual GDP
-    last_actual_gdp = df[target_variable].iloc[-1]  
-    print("last_actual_gdp:", last_actual_gdp)
-    gdp_nowcast = last_actual_gdp + gdp_diff_nowcast.cumsum() # reverse differencing
+    #print("RAW growth rate FORECAST", gdp_growth_forecast)
 
-    gdp_nowcast_df = gdp_nowcast.to_frame(name="Nowcasted_GDP")
-    gdp_nowcast_df = gdp_nowcast_df.reset_index()
-    gdp_nowcast_df.rename(columns={"index": "date"}, inplace=True)
+    last_actual_gdp = train_df["GDP"].iloc[-1]
+    gdp_forecast = []
 
-    return gdp_nowcast_df
+    for growth in gdp_growth_forecast:
+        next_gdp = last_actual_gdp * np.exp(growth / 400)
+        gdp_forecast.append(next_gdp)
+        last_actual_gdp = next_gdp
+
+    # Assign forecasts back to forecast_df
+    forecast_df = forecast_df.copy()
+    forecast_df["gdp_growth_forecast"] = gdp_growth_forecast.values
+    forecast_df["Nowcasted_GDP"] = gdp_forecast
+
+    # Return results with corresponding forecasted dates
+    return forecast_df[["date", "gdp_growth_forecast", "Nowcasted_GDP"]]
 
 
 if __name__ == "__main__":
-    file_path = "../Data/lasso_indicators.csv"
+    file_path = "../Data/bridge_df.csv"
     df = pd.read_csv(file_path)
     next_gdp = model_AR(df)
     
