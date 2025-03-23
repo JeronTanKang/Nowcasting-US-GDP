@@ -59,6 +59,7 @@ def exp_almon_weighted(series, alpha=0.9):
 def aggregate_indicators(df):
     """
     THIS FUNCTION IS DIFF FROM THE REST MUST SET DATE AS INDEX NOOOOTTT RANGE INDEX
+    update on 23 march. seems like i can feed df in 
 
     Function that takes in df with monthly frequency indicators and GDP.
     - Converts indicators to quarterly frequency using specified aggregation rules.
@@ -96,7 +97,7 @@ def aggregate_indicators(df):
         #"Personal_Income": "mean"
     }
 
-    gdp_data = df[['GDP']].resample('Q').last()  # extract the last available GDP value per quarter
+    gdp_data = df[['GDP']].resample('QE').last()  # extract the last available GDP value per quarter
 
     indicators_data = pd.DataFrame()
 
@@ -110,21 +111,21 @@ def aggregate_indicators(df):
         if col in aggregation_rule:
             method = aggregation_rule[col]
             if method == "mean":
-                indicators_data[col] = df_indicators[col].resample('Q').mean()
+                indicators_data[col] = df_indicators[col].resample('QE').mean()
             elif method == "sum":
-                indicators_data[col] = df_indicators[col].resample('Q').sum()
+                indicators_data[col] = df_indicators[col].resample('QE').sum()
             elif method == "exp_almon":
-                indicators_data[col] = df_indicators[col].resample('Q').apply(exp_almon_weighted)
+                indicators_data[col] = df_indicators[col].resample('QE').apply(exp_almon_weighted)
         else:
             # Default to 'mean' for columns not listed in aggregation_rule
-            indicators_data[col] = df_indicators[col].resample('Q').mean()
+            indicators_data[col] = df_indicators[col].resample('QE').mean()
 
     quarterly_df = gdp_data.merge(indicators_data, left_index=True, right_index=True, how='left')
     quarterly_df = quarterly_df.reset_index()
     #quarterly_df['date'] = quarterly_df['date'].dt.strftime('%Y-%m')
     quarterly_df["date"] = pd.to_datetime(quarterly_df["date"], format='%Y-%m')
 
-    quarterly_df = quarterly_df.iloc[::-1].reset_index(drop=True) # reverse row order before returning
+    #quarterly_df = quarterly_df.iloc[::-1].reset_index(drop=True) # reverse row order before returning
 
     #print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
     return quarterly_df
