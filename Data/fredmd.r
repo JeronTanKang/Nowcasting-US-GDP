@@ -14,10 +14,10 @@ library(forecast)
 fredr_set_key("ae58a77f9383ad8ed12a84122eaa71e6") 
 
 #30 years of data
-start_date <- Sys.Date() - 365 * 30
+start_date <- as.Date("2025-03-21") - 365 * 30
 end_date <- Sys.Date()
 
-# List of variables 
+# List of variables a
 variables <- list(
   "GDP" = "GDPC1",
   "CPI" = "CPIAUCSL",
@@ -76,18 +76,7 @@ final_data <- final_data %>%
   )  %>% select(date, year_quarter, everything())
 
 
-# Function to apply Exponential Almon weights
-exp_almon_weighted <- function(series, alpha = 0.9) {
-  series <- na.omit(series)  # Remove NA values
-  n <- length(series)
-  
-  if (n == 0) return(NA)  # Return NA if empty
-  
-  weights <- alpha^(seq(n, 1, by = -1) - 1)  # Generate weights
-  weighted_sum <- sum(series * weights) / sum(weights)  # Apply weighting
-  
-  return(weighted_sum)
-}
+
 
 # Function to aggregate indicators from monthly to quarterly
 aggregate_indicators <- function(df) {
@@ -104,7 +93,7 @@ aggregate_indicators <- function(df) {
     "Industrial_Production" = "mean",
     "Nonfarm_Payrolls" = "sum",
     "PPI" = "mean",
-    "Core_PCE" = "exp_almon",
+    "Core_PCE" = "mean",
     "New_Orders_Durable_Goods" = "sum",
     "Three_Month_Treasury_Yield" = "mean",
     "Consumer_Confidence_Index" = "mean",
@@ -130,8 +119,7 @@ aggregate_indicators <- function(df) {
     summarise(across(
       names(aggregation_rule),
       ~ if (aggregation_rule[[cur_column()]] == "mean") mean(.x, na.rm = TRUE) else
-        if (aggregation_rule[[cur_column()]] == "sum") sum(.x, na.rm = TRUE) else
-          if (aggregation_rule[[cur_column()]] == "exp_almon") exp_almon_weighted(.x),
+        if (aggregation_rule[[cur_column()]] == "sum") sum(.x, na.rm = TRUE),
       .names = "{.col}"
     )) %>% ungroup()
   
@@ -142,10 +130,10 @@ aggregate_indicators <- function(df) {
   return(quarterly_df)
 }
 
-          
-                
-                
-              
+
+temp_data <- final_data
+
+
 final_data <- aggregate_indicators(final_data) 
 final_data <- final_data %>% arrange((year_quarter)) #arrange in asc date order
 
@@ -180,13 +168,13 @@ diff_orders <- c()
 for (col in colnames(df_not_stationary)) {
   if (col != "year_quarter") {  
     
-      # Find the number of differences needed for each indicator
-      order <- ndiffs(df_not_stationary[[col]], test = "adf")  #use adf test
+    # Find the number of differences needed for each indicator
+    order <- ndiffs(df_not_stationary[[col]], test = "adf")  #use adf test
     
-      # Store the differencing order
-      diff_orders[col] <- order
-    }
+    # Store the differencing order
+    diff_orders[col] <- order
   }
+}
 
 # Create a copy of the dataset
 data_stationary <- df_not_stationary
@@ -207,8 +195,8 @@ for (col in colnames(df_not_stationary)) {
 
 #join the 3 dfs together and scale indicators except gdp_growth
 df_stationary <- gdp_df %>% left_join(data_stationary, by = "year_quarter") %>% left_join(temp_df, by = "year_quarter") %>% arrange(year_quarter) %>% 
-                                                 mutate(across(-c(year_quarter, GDP, gdp_growth), ~ as.numeric(scale(.)))) #arrange in desc date order
-                                               
+  mutate(across(-c(year_quarter, GDP, gdp_growth), ~ as.numeric(scale(.)))) #arrange in desc date order
+
 
 
 
@@ -265,4 +253,3 @@ print(selected_vars)
 #chosen indicators (in order of importance): 
 #Nonfarm_Payrolls, Construction_Spending, Trade_Balance_lag1 , Industrial_Production_lag3, Housing_Starts,
 #Capacity_Utilization, New_Orders_Durable_Goods, Interest_Rate_lag1, junk_bond_spread_lag1, Unemployment 
-
