@@ -12,6 +12,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from data_processing import aggregate_indicators
 
+
 """#pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
 pd.set_option("display.width", None)
@@ -96,8 +97,8 @@ def record_months_to_forecast(df, predictors):
                 next_date += pd.DateOffset(months=1)
 
     return months_to_forecast
-
 def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag1","gdp_growth_lag2","gdp_growth_lag3","gdp_growth_lag4"]):
+    df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
     df = df.set_index("date") 
 
     """ 
@@ -108,29 +109,38 @@ def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag1"
     - Works column by column, excluding GDP (Y variable).
     """
 
-
     predictors = df.columns.difference(exclude)
 
     # Identify which months need to be forecasted for each predictor
     months_to_forecast = record_months_to_forecast(df, predictors)
     print("Months to forecast:", months_to_forecast)
 
+    #print("LOOOOOOKKK HERREEEE", df)
+
     for col in predictors:
         if col in months_to_forecast and months_to_forecast[col]:
             indic_data = df[col].dropna().sort_index()
 
-            forecast_start = 0
-            forecast_end = forecast_start + len(months_to_forecast[col]) - 1
-            print(f"{col}: forecasting from {forecast_start} to {forecast_end}")
+            # Iterate over each month to forecast one by one
+            for forecast_date in months_to_forecast[col]:
+                # Get the data before the current forecast_date
+                data_before_forecast = df.loc[df.index <= forecast_date, col].dropna()
 
-            try:
-                final_model = AutoReg(indic_data, lags=9, old_names=False).fit()
-                predicted_values = final_model.predict(start=forecast_start, end=forecast_end)
+                try:
+                    # Fit the model to the data before the current forecast date
+                    final_model = AutoReg(data_before_forecast, lags=3, old_names=False).fit()
 
-                predicted_series = pd.Series(predicted_values.values, index=pd.to_datetime(months_to_forecast[col]))
-                df.update(predicted_series.to_frame(name=col))
-            except Exception as e:
-                print(f"Could not forecast {col} due to: {e}")
+                    # Predict the missing value for the current date
+                    predicted_value = final_model.predict(start=len(data_before_forecast), end=len(data_before_forecast))[0]
+
+                    # Update the DataFrame with the predicted value at the missing date
+                    df.loc[forecast_date, col] = predicted_value
+
+                    # Optionally, print the predicted value for debugging
+                    #print(f"Predicted {col} for {forecast_date}: {predicted_value}")
+
+                except Exception as e:
+                    print(f"Could not forecast {col} for {forecast_date} due to: {e}")
 
     df = df.reset_index()
     df = df.sort_values(by="date").reset_index(drop=True)
@@ -138,7 +148,9 @@ def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag1"
     return df
 
 
-def fit_ols_model(df):
+
+
+def fit_ols_model(df, drop_variables):
     """
     Fits an OLS regression model using GDP as the dependent variable
     and the other 10 indicators as independent variables.
@@ -163,10 +175,10 @@ def fit_ols_model(df):
     #print(df)
 
     Y = df['gdp_growth']  
-    X = df.drop(columns=["GDP","gdp_growth", "gdp_growth_lag1", "gdp_growth_lag2"]) 
+    X = df.drop(columns=drop_variables) 
 
     # add constant for the intercept term
-    X = sm.add_constant(X)
+    #X = sm.add_constant(X)
 
     model = sm.OLS(Y, X).fit()
 
@@ -197,7 +209,20 @@ def model_bridge(df):
     # step 1: fit ols on quarterly data
 
     #print("PPPPPPEEEEEEEEKKKKK",train_ols)
-    ols_model = fit_ols_model(train_ols)
+    ##########################
+    drop_variables = ["GDP","gdp_growth",#"gdp_growth_lag1",
+                    "gdp_growth_lag2", "gdp_growth_lag3", "gdp_growth_lag4",
+                    #"junk_bond_spread",
+                    #"junk_bond_spread_lag1",
+                    "junk_bond_spread_lag2",
+                    "junk_bond_spread_lag3", "junk_bond_spread_lag4",  
+                    "Industrial_Production_lag3",
+                    "Interest_Rate_lag1",
+                    "dummy",
+                    "Construction_Spending"
+                     ]
+    ##########################
+    ols_model = fit_ols_model(train_ols, drop_variables)
     
     # step 2: for loop to forecast values for each indicator
     # OK DONE FOR STEP 2
@@ -208,8 +233,9 @@ def model_bridge(df):
     #monthly_indicators_forecasted.index = pd.to_datetime(monthly_indicators_forecasted.index)
     quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) # aggregate to quartlerly
 
-    predictors = quarterly_indicators_forecasted.drop(columns=["date","GDP","gdp_growth", "gdp_growth_lag1", "gdp_growth_lag2"], errors='ignore')
-    predictors = sm.add_constant(predictors, has_constant='add')  
+    drop_variables.append("date")
+    predictors = quarterly_indicators_forecasted.drop(columns=drop_variables, errors='ignore')
+    #predictors = sm.add_constant(predictors, has_constant='add')  
 
     # where mask is the dates to forecast
     mask = quarterly_indicators_forecasted["gdp_growth"].isna()
@@ -219,20 +245,46 @@ def model_bridge(df):
     nowcast_growth = ols_model.predict(predictors_to_forecast)
     #print("OUTCOMES (gdp_growth forecast):", nowcast_growth)
 
-    # Get last known actual GDP level from training data
-    last_actual_gdp = train_ols["GDP"].dropna().iloc[-1]
-
-    # Convert nowcasted gdp_growth to GDP level
+    # Iterated forecasting for GDP growth and GDP
+    nowcast_growth = []
     nowcasted_gdp_levels = []
-    for growth in nowcast_growth:
-        next_gdp = last_actual_gdp * np.exp(growth / 400)
-        nowcasted_gdp_levels.append(next_gdp)
-        last_actual_gdp = next_gdp  # update for next step
+    
+    # Initialize the last known GDP
+    last_actual_gdp = train_ols["GDP"].dropna().iloc[-1]  # Last known actual GDP
 
-    # Final output DataFrame
+    # Initialize a dictionary to store predicted growth values (gdp_growth_lag1)
+    predicted_growth_dict = {}
+
+    predictors_to_forecast = predictors_to_forecast.reset_index(drop=True)
+        
+    print("predictors_to_forecast", predictors_to_forecast)
+
+    # Loop over predictors to forecast iteratively
+    for idx, row in predictors_to_forecast.iterrows():
+        # Step 1: Update the current row's gdp_growth_lag1 with the predicted value from the dictionary
+        if idx > 0:  # Skip the first iteration
+            row["gdp_growth_lag1"] = predicted_growth_dict[idx - 1]  # Use the previous row's predicted growth
+
+        print("prediction is made on this row \n",row)
+        # Step 2: Predict GDP growth for the current row
+        predicted_growth = ols_model.predict([row])[0]
+        print(idx, predicted_growth)
+        nowcast_growth.append(predicted_growth)
+
+        # Step 3: Convert GDP growth to GDP level for the current period
+        next_gdp = last_actual_gdp * np.exp(predicted_growth / 400)  # Convert growth rate to GDP level
+        nowcasted_gdp_levels.append(next_gdp)
+
+        # Step 4: Update the last known GDP for the next iteration
+        last_actual_gdp = next_gdp  # Update for next forecast
+
+        # Step 5: Store the predicted growth (gdp_growth_lag1) in the dictionary for the next row
+        predicted_growth_dict[idx] = predicted_growth
+
+    # Final output DataFrame with Nowcasted GDP Growth and GDP levels
     nowcast_df = pd.DataFrame({
         "date": pd.to_datetime(dates_to_forecast),
-        "Nowcasted_GDP_Growth": nowcast_growth.values,
+        "Nowcasted_GDP_Growth": nowcast_growth,
         "Nowcasted_GDP": nowcasted_gdp_levels
     })
 
@@ -241,35 +293,13 @@ def model_bridge(df):
 
 if __name__ == "__main__":
     file_path = "../Data/bridge_df.csv"
+    #file_path = "../Data/manual_testing.csv"
     df = pd.read_csv(file_path)
 
     print(model_bridge(df))
-    
-    #print("\nFinal Nowcasted GDP:", nowcast_gdp)
 
 
 
 
 
-###### everything below is just an archive
-
-"""
-    # Step 2: Rolling Window Bridge Regression (80 quarters)
-    rolling_window = 80  # Set rolling window size
-
-    def rolling_regression(y, X, window):
-        predictions = []
-        for i in range(window, len(y)):
-            X_train = X.iloc[i - window:i]
-            y_train = y.iloc[i - window:i]
-            model = sm.OLS(y_train, sm.add_constant(X_train)).fit()
-            y_pred = model.predict(sm.add_constant(X.iloc[i]))
-            predictions.append(y_pred.values[0])
-        return predictions
-
-    # Estimate GDP using Bridge Regression Model
-    gdp_predictions = rolling_regression(y, X, rolling_window)
-
-"""
-    
 
