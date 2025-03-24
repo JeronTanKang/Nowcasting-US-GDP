@@ -32,29 +32,6 @@ def make_stationary(df, max_diff=2):
 
     return df_stationary, differenced_counts 
 
-def exp_almon_weighted(series, alpha=0.9):
-    """
-    Applies an Exponential Almon transformation for weighted aggregation.
-    - Recent values get higher weights.
-
-    Args:
-    - series (pd.Series): Time series data to transform.
-    - alpha (float): Decay factor (0 < alpha < 1, closer to 1 gives more weight to recent values).
-
-    Returns:
-    - float: Weighted aggregated value.
-    """
-
-    # remove nans to prevent div by zero
-    series = series.dropna().to_numpy()  
-
-    if len(series) == 0:  
-        return np.nan
-
-    weights = np.array([alpha ** i for i in range(len(series))][::-1])  
-
-    return np.sum(series * weights) / np.sum(weights)  
-
 
 def aggregate_indicators(df):
     """
@@ -75,29 +52,31 @@ def aggregate_indicators(df):
     #print("THIS IS WHAT WORKS FOR aggregate_indicators", df)
 
     aggregation_rule = {
-        #"CPI": "exp_almon", #inflation trend
-        #"Crude_Oil": "mean", #price so take average
-        "Interest_Rate": "mean",  # rate take an avg
-        "Unemployment": "mean",  # rate take an avg
-        "Trade_Balance": "sum",
-        "Retail_Sales" : "sum",
-        "Housing_Starts": "sum",  
-        "Capacity_Utilization": "mean",  #rate take an avg
-        "Industrial_Production": "mean", # index take avg
-        "Nonfarm_Payrolls": "sum", 
-        #"PPI": "mean", #index 
-        "Core_PCE": "exp_almon", # for inflation trends
-        #"New_Orders_Durable_Goods": "sum",
-        "Three_Month_Treasury_Yield": "mean",  # rate take an avg
-        #"Consumer_Confidence_Index" : "mean", # index
-        #"New_Home_Sales": "sum",
-        #"Business_Inventories": "mean",
-        "Construction_Spending": "sum",
-        #"Wholesale_Inventories": "mean",
-        #"Personal_Income": "mean"
+        "GDP": "sum",  # GDP should be aggregated using mean
+        "gdp_growth": "sum",  # GDP growth, as a rate, should be averaged
+        "gdp_growth_lag1": "sum",  # Lagged GDP growth, average
+        "gdp_growth_lag2": "sum",  # Lagged GDP growth, average
+        "gdp_growth_lag3": "sum",  # Lagged GDP growth, average
+        "gdp_growth_lag4": "sum",  # Lagged GDP growth, average
+        "Nonfarm_Payrolls": "sum",  # Sum of non-farm payrolls
+        "Construction_Spending": "sum",  # Sum of construction spending
+        "Trade_Balance_lag1": "sum",  # Trade balance, lag1 (sum)
+        "Industrial_Production_lag1": "mean",  # Industrial production, lag1 (average)
+        "Industrial_Production_lag3": "mean",  # Industrial production, lag3 (average)
+        "Housing_Starts": "sum",  # Housing starts, sum
+        "Capacity_Utilization": "mean",  # Capacity utilization, average
+        "New_Orders_Durable_Goods": "sum",  # New orders for durable goods, sum
+        "Interest_Rate_lag1": "mean",  # Interest rate, lag1 (average)
+        "Unemployment": "mean",  # Unemployment rate, average
+        "junk_bond_spread": "mean",  # Junk bond spread, average
+        "junk_bond_spread_lag1": "mean",  # Junk bond spread, lag1 (average)
+        "junk_bond_spread_lag2": "mean",  # Junk bond spread, lag2 (average)
+        "junk_bond_spread_lag3": "mean",  # Junk bond spread, lag3 (average)
+        "junk_bond_spread_lag4": "mean",  # Junk bond spread, lag4 (average)
+        "dummy": "mean"  # Dummy variable, sum (usually used for counting events)
     }
 
-    gdp_data = df[['GDP']].resample('QE').last()  # extract the last available GDP value per quarter
+    gdp_data = df[['GDP']].resample('QS').last()  # extract the last available GDP value per quarter
 
     indicators_data = pd.DataFrame()
 
@@ -111,14 +90,12 @@ def aggregate_indicators(df):
         if col in aggregation_rule:
             method = aggregation_rule[col]
             if method == "mean":
-                indicators_data[col] = df_indicators[col].resample('QE').mean()
+                indicators_data[col] = df_indicators[col].resample('QS').mean()
             elif method == "sum":
-                indicators_data[col] = df_indicators[col].resample('QE').sum()
-            elif method == "exp_almon":
-                indicators_data[col] = df_indicators[col].resample('QE').apply(exp_almon_weighted)
+                indicators_data[col] = df_indicators[col].resample('QS').sum()
         else:
             # Default to 'mean' for columns not listed in aggregation_rule
-            indicators_data[col] = df_indicators[col].resample('QE').mean()
+            indicators_data[col] = df_indicators[col].resample('QS').mean()
 
     quarterly_df = gdp_data.merge(indicators_data, left_index=True, right_index=True, how='left')
     quarterly_df = quarterly_df.reset_index()
@@ -127,7 +104,7 @@ def aggregate_indicators(df):
 
     #quarterly_df = quarterly_df.iloc[::-1].reset_index(drop=True) # reverse row order before returning
 
-    #print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
+    print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
     return quarterly_df
 
 
