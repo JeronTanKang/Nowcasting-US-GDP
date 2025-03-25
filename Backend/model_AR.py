@@ -46,8 +46,8 @@ def model_AR(df, target_variable: str = "GDP"):
     #print(ar_order)
     ar_model = ARIMA(train_series, order=(ar_order, 0, 0)).fit()
 
-    #print("AR Model Coefficients:", ar_model.params)
-    #print(ar_model.summary())  
+    print("AR Model Coefficients:", ar_model.params)
+    print(ar_model.summary())  
 
     # generate forecast
     steps = len(forecast_df)
