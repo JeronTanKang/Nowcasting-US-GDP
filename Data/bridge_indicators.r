@@ -193,7 +193,8 @@ final_df <- df_lagged %>% select(date, GDP, gdp_growth, gdp_growth_lag1, gdp_gro
                                  Nonfarm_Payrolls, Construction_Spending, Trade_Balance_lag1, Industrial_Production_lag1,
                                  Industrial_Production_lag3, Housing_Starts, Capacity_Utilization, New_Orders_Durable_Goods, 
                                  Interest_Rate_lag1, Unemployment, junk_bond_spread, junk_bond_spread_lag1,
-                                 junk_bond_spread_lag2, junk_bond_spread_lag3, junk_bond_spread_lag4)
+                                 junk_bond_spread_lag2, junk_bond_spread_lag3, junk_bond_spread_lag4, yield_spread,
+                                 yield_spread_lag1, yield_spread_lag2, yield_spread_lag3, yield_spread_lag4)
 
 #add dummy variable to indicate recession
 recession_dates <- as.Date(c(
