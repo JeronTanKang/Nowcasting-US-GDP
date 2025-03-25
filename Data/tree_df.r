@@ -168,4 +168,15 @@ for (col in colnames(df_not_stationary)) {
 data_stationary <- gdp_df %>% left_join(temp_df, by = "date") %>% left_join(data_stationary, by = "date") %>% 
   arrange(date) 
 
+#add dummy variable to indicate recession
+recession_dates <- as.Date(c(
+  "2020-06-01", "2020-05-01", "2020-04-01", "2020-03-01", "2020-02-01", "2020-01-01",
+  "2009-06-01", "2009-05-01", "2009-04-01", "2009-03-01", "2009-02-01", "2009-01-01",
+  "2008-12-01", "2008-11-01", "2008-10-01", "2008-09-01", "2008-08-01", "2008-07-01",
+  "2008-06-01", "2008-05-01", "2008-04-01", "2008-03-01", "2008-02-01", "2008-01-01",
+  "2001-12-01", "2001-11-01", "2001-10-01", "2001-09-01", "2001-08-01", "2001-07-01"
+))
+
+final_df <- data_stationary %>% mutate(dummy = if_else(date %in% recession_dates, 1, 0))
+
 write.csv(final_df, "tree_df.csv", row.names = FALSE)
