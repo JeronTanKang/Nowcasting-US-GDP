@@ -113,7 +113,7 @@ def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag1"
 
     # Identify which months need to be forecasted for each predictor
     months_to_forecast = record_months_to_forecast(df, predictors)
-    print("Months to forecast:", months_to_forecast)
+    #print("Months to forecast:", months_to_forecast)
 
     #print("LOOOOOOKKK HERREEEE", df)
 
@@ -161,9 +161,11 @@ def fit_ols_model(df, drop_variables):
     Returns:
     - results: Fitted OLS model
     """
-
+    print("XXXXXX", df)
     df = df.set_index('date')
     df = df.iloc[::-1].reset_index(drop=True) # reverse row order
+
+
 
     # do i need this safety check?
     #df = df.dropna(subset=['GDP'])
@@ -176,6 +178,8 @@ def fit_ols_model(df, drop_variables):
 
     Y = df['gdp_growth']  
     X = df.drop(columns=drop_variables) 
+
+
 
     # add constant for the intercept term
     #X = sm.add_constant(X)
@@ -196,15 +200,15 @@ def model_bridge(df):
     df["date"] = pd.to_datetime(df["date"])
     print("ORIGINAL DF", df)
 
-    train_df = df[df["gdp_growth"].notna()].copy()
-    forecast_df = df[df["gdp_growth"].isna()].copy()
+    train_df = df[df["GDP"].notna()].copy()
+    forecast_df = df[df["GDP"].isna()].copy()
 
     #print("PPPPPPEEEEEEEEKKKKK",df_aggregated)
 
     # step 1 aggregate
     # only want to pass into fit_ols_model the train data
     df_aggregated = aggregate_indicators(df)
-    train_ols = df_aggregated[df_aggregated["gdp_growth"].notna()].copy()
+    train_ols = df_aggregated[df_aggregated["GDP"].notna()].copy()
 
     # step 1: fit ols on quarterly data
 
@@ -218,7 +222,7 @@ def model_bridge(df):
                     "junk_bond_spread_lag3", "junk_bond_spread_lag4",  
                     "Industrial_Production_lag3",
                     "Interest_Rate_lag1",
-                    "dummy",
+                    #"dummy",
                     "Construction_Spending"
                      ]
     ##########################
@@ -233,12 +237,13 @@ def model_bridge(df):
     #monthly_indicators_forecasted.index = pd.to_datetime(monthly_indicators_forecasted.index)
     quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) # aggregate to quartlerly
 
+
     drop_variables.append("date")
     predictors = quarterly_indicators_forecasted.drop(columns=drop_variables, errors='ignore')
     #predictors = sm.add_constant(predictors, has_constant='add')  
 
     # where mask is the dates to forecast
-    mask = quarterly_indicators_forecasted["gdp_growth"].isna()
+    mask = quarterly_indicators_forecasted["GDP"].isna()
     predictors_to_forecast = predictors[mask]
     dates_to_forecast = quarterly_indicators_forecasted["date"][mask]
 
@@ -265,10 +270,10 @@ def model_bridge(df):
         if idx > 0:  # Skip the first iteration
             row["gdp_growth_lag1"] = predicted_growth_dict[idx - 1]  # Use the previous row's predicted growth
 
-        print("prediction is made on this row \n",row)
+        #print("prediction is made on this row \n",row)
         # Step 2: Predict GDP growth for the current row
         predicted_growth = ols_model.predict([row])[0]
-        print(idx, predicted_growth)
+        #print(idx, predicted_growth)
         nowcast_growth.append(predicted_growth)
 
         # Step 3: Convert GDP growth to GDP level for the current period
@@ -297,6 +302,7 @@ if __name__ == "__main__":
     df = pd.read_csv(file_path)
 
     print(model_bridge(df))
+
 
 
 
