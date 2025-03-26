@@ -1,121 +1,232 @@
 import numpy as np
 import pandas as pd 
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from model_AR import model_AR
-from model_bridge import model_bridge
-
+from model_ADL_bridge import model_ADL_bridge
 #from diebold_mariano_test import diebold_mariano_test 
 
-def rolling_window_benchmark_evaluation(df, target_variable="GDP", 
-                                        window_size=350, start_date="1996-01", end_date="2024-09"):
-    """
-    Methodology:
+def get_missing_months(df, date_column="date"):
+    # Ensure the date column is in datetime format
+    df[date_column] = pd.to_datetime(df[date_column])
 
-    Takes in df: GDP | GDP Diff | NFP L1 | Retail Sales L1 | Housing Starts L1 | Junk Bond Spreads L1
+    # Get the latest date in the dataset
+    latest_date = df[date_column].max()
+    
+    # Get the month number (1 to 12)
+    latest_month = latest_date.month
 
-    Total number of quarters available: 120
+    #print("latest_month", latest_month)
+    
+    # Calculate how many months remain to complete the current quarter
+    months_to_complete_quarter = (3 - ((latest_month ) % 3)) % 3
 
-    Define a rolling window size: 80
+    # Total months to add: remaining months of current quarter + 2 quarters (6 months)
+    total_months_to_add = months_to_complete_quarter + 6
+
+    return total_months_to_add
+
+def add_missing_months(df, date_column="date"):
+    # Calculate how many months are missing
+    num_extra_rows = get_missing_months(df, date_column)
+
+    if num_extra_rows > 0:
+        # Get the latest date in the dataset
+        latest_date = pd.to_datetime(df[date_column].max())
+
+        # Generate new dates starting from the next month after the latest date
+        new_dates = pd.date_range(
+            start=latest_date + pd.DateOffset(months=1),
+            periods=num_extra_rows,
+            freq='MS'
+        )
+
+        # Create new rows with NaN values except the date column
+        new_rows = pd.DataFrame({date_column: new_dates})
+
+        # Append to the original dataframe
+        df = pd.concat([df, new_rows], ignore_index=True)
+
+    # Sort and reset index
+    df = df.sort_values(by=date_column).reset_index(drop=True)
+    return df
 
 
-    First iteration: 
-    1. Create curr_window (1995Q1 to 2014 Q4)
-    2. Generate 2015Q1 forecast using model_AR(curr_window) and model_bridge(curr_window) benchmark vs bridge forecast 
-    3. Update in forecast_results_df: date | GDP | Benchmark Forecast | Bridge Forecast
-    4. Move window until last available GDP (2024Q3) 
 
-    5. forecast_results_df can be used to calculate OOS RMSFE and DM test
-
-    # to clarify with Prof: methodology above does a forecast of 1 step from the horizon so it can be used to calculate OOS RMSFE of 1 step from horizon right?
-
-    # maybe after this is done, make another function to calculate OOS RMSFE 2 steps from horizon.
-
-    # to make fan chart: forecast interval which RMSFE (what step from horizon should i be using?) 
-    # eg if latest gdp avail is 2024Q3 and the model forecasts 2024Q4 to 2025Q2 (1 quarter ahead from present day:2025Q1)
-    # then the forecast will be 3 steps ahead of the horizon. so i will need to create a function to calculate also the 2 step and 3 step ahead forecast? 
-
-    # small detail im confused about: while the above talks about 1/2/3 step ahead forecast relative to latest gdp release, 
-    # do we just ignore the forecast horizon of the AR(P) for each indicators? since there will be some error when making those predictions too 
+def rolling_window_benchmark_evaluation(df, window_size=(12*28)):
+    df['date'] = pd.to_datetime(df['date'])  # Ensure 'date' is in datetime format
+    df = df.sort_values(by='date', ascending=False)
+    
+    # Find the index of the last non-NA GDP value
+    last_valid_gdp_index = df['GDP'].first_valid_index()
+    
+    # Get the date two rows above the last available GDP
+    start_row_index = df.index.get_loc(last_valid_gdp_index) - 2  # Two rows above the last valid GDP to complete the quarter
 
     
+    # Trim the DataFrame to include rows starting from this point onward
+    df_trimmed = df.iloc[start_row_index:].sort_values(by='date', ascending=True).reset_index(drop=True)
 
-    Uses a fixed-length rolling window approach to evaluate the forecasting performance 
-    of model_AR and model_bridge.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing macroeconomic indicators.
-        target_variable (str): Column name of the GDP variable.
-        window_size (int): Number of past quarters used for training in each rolling window.
-        start_date (str): The earliest quarter for making predictions (YYYY-MM format).
-        end_date (str): The latest quarter for making predictions (YYYY-MM format).
-
-    Returns:
-        pd.DataFrame: A DataFrame storing actual GDP values and model forecasts for each quarter.
-    """
-
-    # date in desc order
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.sort_values(by="date", ascending=False).reset_index(drop=True)
-
-    forecast_results = []
-
-    # Loop through each quarter where we have enough data for training (moving backwards)
-    for forecast_idx in range(len(df) - window_size - 2, -1, -3):  
-        # Define the training window range (moving backwards)
-        training_end_idx = forecast_idx + window_size  # The most recent data point in window
-        training_start_idx = forecast_idx  # The oldest data point in window
-        training_data = df.loc[df.index[training_start_idx : training_end_idx]].copy()
-
-        # Identify the quarter we are predicting (ensure correct format)
-        target_quarter = df.iloc[forecast_idx]["date"].strftime("%Y-%m")  # Fix formatting
-        print(f"Training from {training_start_idx} to {training_end_idx} → Predicting: {target_quarter}")
-
-        # Run both models using the training data
-        bridge_forecast_df = model_bridge(training_data)
-        ar_forecast_df = model_AR(training_data)
-
-        # Ensure forecasted DataFrames have their date as strings for matching
-        bridge_forecast_df["date"] = bridge_forecast_df["date"].astype(str)
-        ar_forecast_df["date"] = ar_forecast_df["date"].astype(str)
-
-        # Extract forecasts for the specific quarter
-        bridge_forecast = bridge_forecast_df.loc[
-            bridge_forecast_df["date"] == target_quarter, "Nowcasted_GDP"
-        ].values
-
-        ar_forecast = ar_forecast_df.loc[
-            ar_forecast_df["date"] == target_quarter, "Nowcasted_GDP"
-        ].values
-
-        # 🔹 Ensure `df["date"]` is in correct format for matching
-        df["date_str"] = df["date"].dt.strftime("%Y-%m")  # Convert to YYYY-MM format
-
-        # Retrieve the actual GDP value for the target quarter
-        actual_gdp = df.loc[df["date_str"] == target_quarter, target_variable].values
-
-        # Debugging print statements
-        print(f"Target Quarter: {target_quarter}")
-        print(f"Bridge Forecast Found: {bridge_forecast}")
-        print(f"AR Forecast Found: {ar_forecast}")
-        print(f"Actual GDP Found: {actual_gdp}")
-
-        # Store the results if forecasts and actual values exist
-        if bridge_forecast.size > 0 and ar_forecast.size > 0 and actual_gdp.size > 0:
-            forecast_results.append({
-                "date": target_quarter,
-                "Actual_GDP": actual_gdp[0],
-                "Bridge_Forecast": bridge_forecast[0],
-                "AR_Forecast": ar_forecast[0]
-            })
-
-    # Convert results to DataFrame
-    forecast_results_df = pd.DataFrame(forecast_results)
+    #print("df_trimmed",df_trimmed)
     
-    return forecast_results_df
+    # Initialize results dataframe
+    results = pd.DataFrame(columns=[
+        'date', 'actual gdp', 
+        'model_AR h1', 'model_AR h2',  # Placeholder for AR model forecasts (to be filled later)
+        'model_ADL_bridge m1', 'model_ADL_bridge m2', 'model_ADL_bridge m3',
+        'model_ADL_bridge m4', 'model_ADL_bridge m5', 'model_ADL_bridge m6'
+    ])
+
+    #df_sorted = df.sort_values(by='date', ascending=True).reset_index(drop=True)
+    
+    # Loop through the trimmed dataframe using a fixed rolling window size
+    for start_index in range(len(df_trimmed) - window_size):
+        #print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[start_index + window_size - 1]['date'].date())
+        
+        # Get the historical data window of size `window_size`
+        end_index = start_index + window_size
+        historical_data = df_trimmed.iloc[start_index:end_index]
+
+        historical_data = historical_data.sort_values(by='date', ascending=False).reset_index(drop=True)
+
+        historical_data = add_missing_months(historical_data, date_column="date")
+
+        # Recompute gdp_growth_lag2 from gdp_growth
+        if 'gdp_growth' in historical_data.columns:
+            historical_data['gdp_growth_lag2'] = historical_data['gdp_growth'].shift(6)
+
+            last_valid_idx = historical_data['gdp_growth_lag2'].last_valid_index()
+
+            # Replace it with NaN
+            #The logic is so that we only add one gdp_growth_lag2 because we assume we do not have gdp release for the latest quarter in the window
+            if last_valid_idx is not None:
+                historical_data.loc[last_valid_idx, 'gdp_growth_lag2'] = pd.NA
 
 
-file_path = "../Data/lasso_indicators.csv"
+
+        #print("historical_data", historical_data.tail(15))
+
+        
+        # Get actual GDP value for the current period (the next row outside the window)
+        actual_gdp = df_trimmed.iloc[end_index]['GDP']  # The next row after the window  
+
+        date = df_trimmed.iloc[end_index]['date']
+
+        #print("forecasting starts on", date)
+        
+        # Adjust the date to the first month of the quarter
+        if date.month < 4:  # January, February, March
+            adjusted_date = pd.to_datetime(f'{date.year}-01-01')
+        elif date.month < 7:  # April, May, June
+            adjusted_date = pd.to_datetime(f'{date.year}-04-01')
+        elif date.month < 10:  # July, August, September
+            adjusted_date = pd.to_datetime(f'{date.year}-07-01')
+        else:  # October, November, December
+            adjusted_date = pd.to_datetime(f'{date.year}-10-01')
+
+        # Forecast using model_ADL_bridge (for the rolling window)
+        model_adl_output = model_ADL_bridge(historical_data)  # Get the model output DataFrame
+        #print("model_adl_output", model_adl_output)
+
+        # insert forecast from RF BRIDGE
+        
+        # Determine the forecast horizon (using a heuristic based on the month)
+        month_of_forecast = date.month  # This will help decide which forecast to use
+
+        if month_of_forecast in [1, 4, 7, 10]:  # January, April, July, October -> m1, m4
+            model_adl_m1 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m1 forecast
+            model_adl_m4 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m4 forecast
+        elif month_of_forecast in [2, 5, 8, 11]:  # February, May, August, November -> m2, m5
+            model_adl_m2 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m2 forecast
+            model_adl_m5 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m5 forecast
+        else:  # March, June, September, December -> m3, m6
+            model_adl_m3 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m3 forecast
+            model_adl_m6 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m6 forecast
+        
+        # AR Forecast — only run model_AR on the first month of each quarter
+        if month_of_forecast in [1, 4, 7, 10]:
+            model_ar_output = model_AR(historical_data)
+            model_ar_h1 = model_ar_output.iloc[0]['Nowcasted_GDP']
+            model_ar_h2 = model_ar_output.iloc[1]['Nowcasted_GDP']
+
+            # insert forecast from RF BENCHMARK
+            # model_RF_benchmark = model_RF_benchmark(historical_data)
+            #
+            #
+
+        else:
+            model_ar_h1 = None
+            model_ar_h2 = None
+        
+        results = pd.concat([results, pd.DataFrame({
+            'date': [date],  
+            'actual gdp': [actual_gdp],
+            'model_AR h1': [model_ar_h1],
+            'model_AR h2': [model_ar_h2],
+            'model_ADL_bridge m1': [model_adl_m1 if month_of_forecast in [1, 4, 7, 10] else None],
+            'model_ADL_bridge m2': [model_adl_m2 if month_of_forecast in [2, 5, 8, 11] else None],
+            'model_ADL_bridge m3': [model_adl_m3 if month_of_forecast in [3, 6, 9, 12] else None],
+            'model_ADL_bridge m4': [model_adl_m4 if month_of_forecast in [1, 4, 7, 10] else None],
+            'model_ADL_bridge m5': [model_adl_m5 if month_of_forecast in [2, 5, 8, 11] else None],
+            'model_ADL_bridge m6': [model_adl_m6 if month_of_forecast in [3, 6, 9, 12] else None],
+        })], ignore_index=True)
+
+    results['model_ADL_bridge m4'] = results['model_ADL_bridge m4'].shift(3)
+    results['model_ADL_bridge m5'] = results['model_ADL_bridge m5'].shift(3)
+    results['model_ADL_bridge m6'] = results['model_ADL_bridge m6'].shift(3)
+
+    results['model_AR h2'] = results['model_AR h2'].shift(3)
+    
+    return results
+
+def calculate_rmsfe(df):
+    # Ensure date column is in datetime format
+    df['date'] = pd.to_datetime(df['date'])
+
+    # Create a column to identify the first month of each quarter
+    def get_quarter_start_date(d):
+        if d.month < 4:
+            return pd.Timestamp(f"{d.year}-01-01")
+        elif d.month < 7:
+            return pd.Timestamp(f"{d.year}-04-01")
+        elif d.month < 10:
+            return pd.Timestamp(f"{d.year}-07-01")
+        else:
+            return pd.Timestamp(f"{d.year}-10-01")
+
+    df['quarter_start'] = df['date'].apply(get_quarter_start_date)
+
+    # Group by quarter_start, taking the first non-null value for each column
+    agg_dict = {
+        col: 'first' for col in df.columns
+        if col not in ['date', 'quarter_start']
+    }
+
+    result = df.groupby('quarter_start').agg(agg_dict).reset_index()
+    result = result.rename(columns={'quarter_start': 'date'})
+
+    # Columns to calculate RMSFE for
+    forecast_cols = [
+        'model_AR h1', 'model_AR h2',
+        'model_ADL_bridge m1', 'model_ADL_bridge m2', 'model_ADL_bridge m3',
+        'model_ADL_bridge m4', 'model_ADL_bridge m5', 'model_ADL_bridge m6'
+    ]
+
+    # Compute RMSFE for each forecast column
+    for col in forecast_cols:
+        error = result[col] - result['actual gdp']
+        rmsfe = np.sqrt((error ** 2).mean(skipna=True))
+        result[f'RMSFE_{col}'] = rmsfe
+
+    return result
+
+
+file_path = "../Data/bridge_df.csv"
 df = pd.read_csv(file_path)
-print(rolling_window_benchmark_evaluation(df))
+res = rolling_window_benchmark_evaluation(df)
+print(res)
+print(calculate_rmsfe(res))
 
 
 """if __name__ == "__main__":
