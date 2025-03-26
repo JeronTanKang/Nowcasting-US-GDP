@@ -5,153 +5,160 @@ import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import TimeSeriesSplit
-#pd.set_option("display.max_columns", None)
-pd.reset_option("display.max_columns")
+from sklearn.feature_selection import RFECV
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from data_processing import aggregate_indicators, create_lag_features
 from model_ADL_bridge import forecast_indicators, record_months_to_forecast #AR(p) model 
+#pd.set_option("display.max_columns", None)
+pd.reset_option("display.max_columns")
 
+
+# #Actual data
 file_path = "../Data/tree_df.csv"
-df = pd.read_csv(file_path)
 
+# #Testing data 
+# #file_path = "../Data/tree_df copy.csv"
+
+df = pd.read_csv(file_path)
 df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
 
-#Sort date in ascending order
+# #Sort date in ascending order
 df = df.sort_values(by='date', ascending= True)
-#df.drop(columns = ["dummy"], inplace= True)
 
-#Aggregate Data
+# #Aggregate Data
 df1 = aggregate_indicators(df)
 
-#Create lagged features
+# #Create lagged features
 exclude_columns = ["date", "GDP", "dummy"]
 df1 = create_lag_features(df1, exclude_columns, 4) 
 print("column names", df1.columns)
-#Sort date again 
+
+# #Sort date again 
 df1 = df1.sort_values(by='date', ascending= True)
 
-#drop gdp_growth_lag1
-df1 = df1.drop(columns = ['gdp_growth_lag1'])
-
-#Drop NaN values created by lagging 
+# #Drop NaN values created by lagging 
 df1.dropna(inplace = True)
 
-#Drop 'Date' before defining X 
+# #Drop 'Date' before defining X 
 X = df1.drop(columns=["gdp_growth", "GDP", "date"])
 Y = df1['gdp_growth']
 
-# Train test split 
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, shuffle=False)
+def get_selected_features(X, Y, n_splits=5):
+    """
+    Runs RFECV using time series split on preprocessed and lagged X, Y data.
+    Only training set is used for feature selection.
+    """
+    # Time-based train-test split
+    split_idx = int(len(X) * 0.8)
+    X_train, Y_train = X.iloc[:split_idx], Y.iloc[:split_idx]
 
-# Train Random Forest model for feature selection
-rf_selector = RandomForestRegressor(n_estimators=100, random_state=42)
-rf_selector.fit(X_train, Y_train)
+    rf_model = RandomForestRegressor(random_state=42)
+    tscv = TimeSeriesSplit(n_splits=n_splits)
 
-# # ✅ Step 6: Extract feature importance scores
-feature_importances = pd.Series(rf_selector.feature_importances_, index=X.columns)
+    rfecv = RFECV(
+        estimator=rf_model,
+        step=1,
+        cv=tscv,
+        scoring='neg_mean_squared_error',
+        n_jobs=-1
+    )
 
-# # ✅ Step 7: Select the top 10 most important features
-top_features = feature_importances.nlargest(10).index
-print(top_features)
+    #Fitting RFECV on training set 
+    rfecv.fit(X_train, Y_train)
 
 
-#  #Building the RF model 
-df = df.sort_values(by='date', ascending= True)
+    # Fitting RFECV on training set 
+    rfecv.fit(X_train, Y_train)
 
-# #forecast with AR(p)
-df_model = forecast_indicators(df)
+    selected_features = list(X_train.columns[rfecv.support_])
 
-#Aggregate to quarterly 
-df_model = aggregate_indicators(df_model)
-print("check the df hehehehe", df_model)
+    # Desired simplified output
+    print(f"Optimal number of features: {rfecv.n_features_}")
+    print(f"These are your selected features: {selected_features}")
 
-#lag the df 
-exclude_columns = ["date", "GDP"]
-max_lag = 4
-df_model = create_lag_features(df_model, exclude_columns, max_lag) 
 
-#Sort Lags Again 
-df_model = df_model.sort_values(by='date', ascending=True)
-print("i just want to check my lags", df_model)
+    return selected_features
 
-#Updated df_model with selected features 
-df_model = df_model[['date', 'GDP', 'gdp_growth'] + list(top_features)]
+#selected_features = get_selected_features(X, Y)
 
-# #Drop only rows where date is in 1995 & Contains NaN 
-df_model = df_model[~((df_model["date"].dt.year == 1995) & (df_model.isna().any(axis=1)))]
+def train_and_nowcast_rf(df_raw, save_model_path=None):
+    """
+    Full RF pipeline: forecast monthly -> aggregate -> lag -> train -> nowcast.
+    Args:
+        df_raw: Original raw DataFrame with monthly data.
+        save_model_path: Optional path to save the trained model.
+    Returns:
+        final_rf_model: trained model
+        nowcast_results: DataFrame with nowcasted GDP and growth
+    """
 
-# Remove the row for 1996-03-31 if it contains any missing values
-df_model = df_model[~((df_model["date"] == "1996-03-31") & (df_model.isna().any(axis=1)))]
+    # ✅ Hardcoded selected features
+    selected_features = [
+        'Unemployment', 'junk_bond_spread', 'Trade_Balance', 'Retail_Sales',
+        'Capacity_Utilization', 'New_Orders_Durable_Goods', 'Business_Inventories',
+        'Construction_Spending', 'junk_bond_spread_lag1', 'Crude_Oil_lag2',
+        'Crude_Oil_lag4', 'Housing_Starts_lag2', 'Industrial_Production_lag3',
+        'Nonfarm_Payrolls_lag3', 'New_Orders_Durable_Goods_lag1',
+        'Consumer_Confidence_Index_lag2', 'Consumer_Confidence_Index_lag3',
+        'New_Home_Sales_lag4', 'Business_Inventories_lag1', 'Construction_Spending_lag1'
+    ]
 
-#Subset the data to include all rows up to last known GDP 
-#print("here is your df_model",df_model)
-                                                       
-# Train Random Forest Model using only the selected features 
-X_final = df_model.drop(columns= ["GDP", "gdp_growth", "date"]) #Features
-Y_final = df_model["gdp_growth"] #Target 
+    # 1. Forecast with AR(p) and preprocess
+    df_raw = df_raw.sort_values(by='date', ascending=True)
+    df_model = forecast_indicators(df_raw)
+    df_model = aggregate_indicators(df_model)
+    df_model = create_lag_features(df_model, exclude_columns=["date", "GDP"], max_lag=4)
+    df_model = df_model.sort_values(by='date', ascending=True)
 
-# #Train-test split
-X_train, X_test, Y_train, Y_test = train_test_split(X_final, Y_final, test_size=0.2, shuffle=False)
+    # 2. Clean up any problematic rows
+    df_model = df_model[~((df_model["date"].dt.year == 1995) & (df_model.isna().any(axis=1)))]
+    df_model = df_model[~((df_model["date"] == "1996-03-31") & (df_model.isna().any(axis=1)))]
 
-# #Predict GDP and Evaluate model performance
-final_rf_model = RandomForestRegressor(n_estimators=200, random_state=42)
-final_rf_model.fit(X_train, Y_train)
+    # 3. Subset to relevant features
+    df_model = df_model[['date', 'GDP', 'gdp_growth'] + selected_features]
 
-# # Saving the model
-model_eval_path = "../Model/eval_rf_model.pkl"
-os.makedirs("../Model", exist_ok=True)
-joblib.dump(final_rf_model, model_eval_path)
-print(f"Saved evaluation model (80% train) to: {model_eval_path}")
+    # 4. Prepare training data
+    df_model_train = df_model.dropna()
+    X = df_model_train.drop(columns=["GDP", "gdp_growth", "date"])
+    Y = df_model_train["gdp_growth"]
 
-#check if NaN or 0 
+    # 5. Train model
+    final_rf_model = RandomForestRegressor(random_state=42)
+    final_rf_model.fit(X, Y)
 
-def nowcast_recursive_rf(df_model, final_rf_model):
-    df_model = df_model.copy()
-    
-    # Split the data into known and unknown GDP parts
-    last_known_idx = df_model[df_model["GDP"].notna()].index[-1]
-    known_df = df_model.loc[:last_known_idx].copy()
-    forecast_df = df_model.loc[last_known_idx + 1:].copy().reset_index(drop=True)
+    # 6. Save model if needed
+    if save_model_path:
+        os.makedirs(os.path.dirname(save_model_path), exist_ok=True)
+        joblib.dump(final_rf_model, save_model_path)
+        print(f"✅ Model saved to {save_model_path}")
 
-    # Initialize containers
-    last_actual_gdp = known_df.iloc[-1]["GDP"]
-    predicted_growth_list = []
-    predicted_gdp_list = []
-    
-    for i in range(len(forecast_df)):
-        row = forecast_df.iloc[i].copy()
+    # 7. Nowcast for missing quarters
+    recent_quarters_mask = df_model.index >= df_model.index[-4]
+    nowcast_mask = (df_model["GDP"].isna()) | ((df_model["gdp_growth"].isna()) & recent_quarters_mask)
+    forecast_df = df_model[nowcast_mask].copy()
 
-        # If we're beyond the first step, use the previously predicted gdp_growth as lagged input
-        if i > 0:
-            for lag in range(1, 5):  # Assuming 4 lags exist
-                col_name = f"gdp_growth_lag{lag}"
-                if col_name in forecast_df.columns:
-                    if i - lag >= 0:
-                        row[col_name] = predicted_growth_list[i - lag]
-        
-        # Drop target columns and predict
-        input_features = row.drop(labels=["date", "GDP", "gdp_growth"]).values.reshape(1, -1)
-        predicted_growth = final_rf_model.predict(input_features)[0]
-        predicted_growth_list.append(predicted_growth)
-        
-        # Convert predicted growth to GDP level
-        next_gdp = last_actual_gdp * (1 + predicted_growth / 100)
-        predicted_gdp_list.append(next_gdp)
-    
-        # Update last known GDP
-        last_actual_gdp = next_gdp
+    nowcast_results = None
+    if not forecast_df.empty:
+        last_known_idx = df_model[df_model["GDP"].notna()].index[-1]
+        last_actual_gdp = df_model.loc[last_known_idx, "GDP"]
 
-    # Output results
-    results_df = forecast_df[["date"]].copy()
-    results_df["Nowcasted_GDP_Growth"] = predicted_growth_list
-    results_df["Nowcasted_GDP"] = predicted_gdp_list
+        X_forecast = forecast_df[selected_features]
+        predicted_growth = final_rf_model.predict(X_forecast)
 
-    return results_df
+        predicted_gdp = []
+        for growth in predicted_growth:
+            next_gdp = last_actual_gdp * np.exp(growth / 400)
+            predicted_gdp.append(next_gdp)
+            last_actual_gdp = next_gdp
 
-# Nowcast the GDP using the trained Random Forest model
-nowcast_results = nowcast_recursive_rf(df_model, final_rf_model)
+        nowcast_results = forecast_df[["date"]].copy()
+        nowcast_results["Nowcasted_GDP_Growth"] = predicted_growth
+        nowcast_results["Nowcasted_GDP"] = predicted_gdp
+    else:
+        print("⚠️ No rows to nowcast.")
 
-# View the nowcasted GDP and growth
-print(nowcast_results)
+    return final_rf_model, nowcast_results
+
+print(train_and_nowcast_rf(df))
