@@ -107,6 +107,19 @@ def aggregate_indicators(df):
     print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
     return quarterly_df
 
+#Function to create lag features
+def create_lag_features(df, exclude_columns, max_lag):
+   
+    if "date" in df.columns:  
+        df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")  # Convert date if it exists
+
+    for col in df.columns:
+        if col not in exclude_columns:
+            for lag in range(1, max_lag + 1):
+                df[f"{col}_lag{lag}"] = df[col].shift(lag)
+    
+    return df
+
 
 
 

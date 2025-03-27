@@ -185,24 +185,24 @@ lag_gdp_growth <- function(data, lags = 4) {
 
 # Apply the function to your dataset
 df_lagged <- lag_features(data_stationary, lags = 4)
-df_lagged <- lag_gdp_growth(df_lagged, lags = 4)
+df_lagged <- lag_gdp_growth(df_lagged, lags = 4) 
 df_lagged <- df_lagged %>% arrange(desc(date))
 
 #only select indicators that are needed
-final_df <- df_lagged %>% select(date, GDP, gdp_growth, gdp_growth_lag1, gdp_growth_lag2, gdp_growth_lag3, gdp_growth_lag4,
+final_df <- df_lagged %>% select(date, GDP, gdp_growth, gdp_growth_lag2, gdp_growth_lag3, gdp_growth_lag4,
                                  Nonfarm_Payrolls, Construction_Spending, Trade_Balance_lag1, Industrial_Production_lag1,
                                  Industrial_Production_lag3, Housing_Starts, Capacity_Utilization, New_Orders_Durable_Goods, 
                                  Interest_Rate_lag1, Unemployment, junk_bond_spread, junk_bond_spread_lag1,
-                                 junk_bond_spread_lag2, junk_bond_spread_lag3, junk_bond_spread_lag4)
+                                 junk_bond_spread_lag2, junk_bond_spread_lag3, junk_bond_spread_lag4, yield_spread,
+                                 yield_spread_lag1, yield_spread_lag2, yield_spread_lag3, yield_spread_lag4)
+
 
 #add dummy variable to indicate recession
 recession_dates <- as.Date(c(
-  "2020-06-01", "2020-05-01", "2020-04-01", "2020-03-01", "2020-02-01", "2020-01-01",
-  "2009-06-01", "2009-05-01", "2009-04-01", "2009-03-01", "2009-02-01", "2009-01-01",
-  "2008-12-01", "2008-11-01", "2008-10-01", "2008-09-01", "2008-08-01", "2008-07-01",
-  "2008-06-01", "2008-05-01", "2008-04-01", "2008-03-01", "2008-02-01", "2008-01-01",
-  "2001-12-01", "2001-11-01", "2001-10-01", "2001-09-01", "2001-08-01", "2001-07-01"
+  "2020-04-01", "2020-05-01", "2020-06-01",
+  "2020-07-01", "2020-08-01", "2020-09-01"
 ))
+
 
 final_df <- final_df %>% mutate(dummy = if_else(date %in% recession_dates, 1, 0))
 
