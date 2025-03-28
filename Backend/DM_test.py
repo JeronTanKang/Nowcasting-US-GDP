@@ -5,8 +5,8 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from model_AR import model_AR
 from model_ADL_bridge import model_ADL_bridge
-from model_rf_benchmark import model_rf
-from model_rf_bridge import train_and_nowcast_rf
+from model_RF import model_RF
+from model_RF_bridge import model_RF_bridge
 
 pd.reset_option("display.max_columns")
 
