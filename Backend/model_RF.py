@@ -6,7 +6,6 @@ import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-pd.set_option("display.max_columns", None)
 #pd.reset_option("display.max_columns")
 import os
 import sys
@@ -14,10 +13,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'B
 from data_processing import aggregate_indicators, create_lag_features
 from model_ADL_bridge import forecast_indicators, record_months_to_forecast #AR(p) model 
 file_path = "../Data/tree_df_test.csv"
-df = pd.read_csv(file_path)
+#df = pd.read_csv(file_path)
 
 
-def model_rf_benchmark(df):
+def model_rf(df):
 
     df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
     df.drop(columns=["dummy"], inplace=True) #drop dummy col
