@@ -104,7 +104,7 @@ def aggregate_indicators(df):
 
     #quarterly_df = quarterly_df.iloc[::-1].reset_index(drop=True) # reverse row order before returning
 
-    print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
+    #print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
     return quarterly_df
 
 #Function to create lag features
@@ -119,7 +119,5 @@ def create_lag_features(df, exclude_columns, max_lag):
                 df[f"{col}_lag{lag}"] = df[col].shift(lag)
     
     return df
-
-
 
 
