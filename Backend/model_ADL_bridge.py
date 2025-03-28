@@ -119,6 +119,9 @@ def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag2"
     #print("LOOOOOOKKK HERREEEE", df)
 
     for col in predictors:
+        if col == "dummy":
+            df[col].fillna(0, inplace=True)
+            continue  # skip forecasting for dummy
         if col in months_to_forecast and months_to_forecast[col]:
             indic_data = df[col].dropna().sort_index()
 
@@ -141,11 +144,13 @@ def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag2"
                     #print(f"Predicted {col} for {forecast_date}: {predicted_value}")
 
                 except Exception as e:
-                    print(f"Could not forecast {col} for {forecast_date} due to: {e}")
+                    pass
+                    #print(f"Could not forecast {col} for {forecast_date} due to: {e}")
 
     df = df.reset_index()
     df = df.sort_values(by="date").reset_index(drop=True)
     #print("Returned by forecast_indicators:", df)
+    #print("prediction df", df.tail(13))
     return df
 
 
@@ -225,12 +230,12 @@ def model_ADL_bridge(df):
                     "junk_bond_spread_lag2",
                     "junk_bond_spread_lag3", "junk_bond_spread_lag4",  
                     "Industrial_Production_lag3",
-                    #"Trade_Balance_lag1",
+                    "Trade_Balance_lag1",
                     "Interest_Rate_lag1",
-                    "dummy",
-                    "Construction_Spending",
-                    "yield_spread",
-                    "yield_spread_lag1",
+                    #"dummy",
+                    #"Construction_Spending",
+                    #"yield_spread",
+                    #"yield_spread_lag1",
                     "yield_spread_lag2","yield_spread_lag3","yield_spread_lag4"
                      ]
     ##########################
@@ -246,14 +251,14 @@ def model_ADL_bridge(df):
     #monthly_indicators_forecasted.index = pd.to_datetime(monthly_indicators_forecasted.index)
     quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) # aggregate to quartlerly
 
-    #print("quarterly_indicators_forecasted",quarterly_indicators_forecasted)
+    #print("quarterly_indicators_forecasted",quarterly_indicators_forecasted[['date','Trade_Balance_lag1']])
 
     drop_variables.append("date")
     predictors = quarterly_indicators_forecasted.drop(columns=drop_variables, errors='ignore')
     #predictors = sm.add_constant(predictors, has_constant='add')  
 
     # where mask is the dates to forecast
-    #print("serious check here", quarterly_indicators_forecasted)
+    #print("serious check here", quarterly_indicators_forecasted.tail(10))
 
     # set -4 as the limit since there may be up to 4 quarters of gdp missing, depending on when this model is run
 
@@ -273,7 +278,13 @@ def model_ADL_bridge(df):
     last_actual_gdp = train_ols["GDP"].dropna().iloc[-1]  # Last known actual GDP
 
     # Initialize a dictionary to store predicted growth values (gdp_growth_lag2)
-    predicted_growth_dict = {}
+    last_actual_growth = quarterly_indicators_forecasted["gdp_growth"][
+    (quarterly_indicators_forecasted["gdp_growth"].notna()) & 
+    (quarterly_indicators_forecasted["gdp_growth"] != 0)].iloc[-1]
+
+    predicted_growth_dict = {0: last_actual_growth}
+    
+    #predicted_growth_dict = {}
 
     predictors_to_forecast = predictors_to_forecast.reset_index(drop=True)
         
@@ -281,9 +292,11 @@ def model_ADL_bridge(df):
 
     # Loop over predictors to forecast iteratively
     for idx, row in predictors_to_forecast.iterrows():
+        adjusted_idx = idx + 1 
+
         # Step 1: Update the current row's gdp_growth_lag2 with the predicted value from the dictionary
         if pd.isna(row["gdp_growth_lag2"]) or row["gdp_growth_lag2"] == 0:
-            row["gdp_growth_lag2"] = predicted_growth_dict[idx - 1]  # Use the previous row's predicted growth
+            row["gdp_growth_lag2"] = predicted_growth_dict.get(adjusted_idx - 2, last_actual_growth)
 
         #print("prediction is made on this row \n",row)
         # Step 2: Predict GDP growth for the current row
@@ -299,8 +312,9 @@ def model_ADL_bridge(df):
         last_actual_gdp = next_gdp  # Update for next forecast
 
         # Step 5: Store the predicted growth (gdp_growth_lag2) in the dictionary for the next row
-        predicted_growth_dict[idx] = predicted_growth
-        #print("predicted_growth_dict",predicted_growth_dict)
+        predicted_growth_dict[adjusted_idx] = predicted_growth
+
+        #print("iterated updating",predicted_growth_dict)
 
     nowcast_df = pd.DataFrame({
         "date": pd.to_datetime(dates_to_forecast),
@@ -316,6 +330,7 @@ def model_ADL_bridge(df):
 if __name__ == "__main__":
     file_path = "../Data/bridge_df.csv"
     #file_path = "../Data/tseting_adl.csv"
+    #file_path = "../Data/manual_testing.csv"
     df = pd.read_csv(file_path)
     #print("df going in", df)
 
