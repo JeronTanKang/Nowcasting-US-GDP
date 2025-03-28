@@ -83,7 +83,7 @@ def get_selected_features(X, Y, n_splits=5):
 
 #selected_features = get_selected_features(X, Y)
 
-def train_and_nowcast_rf(df_raw, save_model_path=None):
+def model_RF_bridge(df_raw, save_model_path=None):
     """
     Full RF pipeline: forecast monthly -> aggregate -> lag -> train -> nowcast.
     Args:
@@ -161,4 +161,4 @@ def train_and_nowcast_rf(df_raw, save_model_path=None):
 
     return final_rf_model, nowcast_results
 
-print(train_and_nowcast_rf(df))
+print(model_RF_bridge(df))
