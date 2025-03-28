@@ -1,1 +1,1 @@
-api_key = "ae58a77f9383ad8ed12a84122eaa71e6"
+api_key = "your_fred_api_key_here"
