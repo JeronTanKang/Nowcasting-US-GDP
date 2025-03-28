@@ -48,8 +48,8 @@ def model_AR(df, target_variable: str = "GDP"):
     X = sm.add_constant(X)
 
     ols_model = sm.OLS(y, X).fit()
-    print("OLS Coefficients:\n", ols_model.params)
-    print(ols_model.summary())
+    #print("OLS Coefficients:\n", ols_model.params)
+    #print(ols_model.summary())
 
     gdp_growth_forecast = []
 
