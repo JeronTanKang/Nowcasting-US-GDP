@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'B
 from model_AR import model_AR
 from model_ADL_bridge import model_ADL_bridge
 #from diebold_mariano_test import diebold_mariano_test 
+pd.set_option('display.float_format', '{:.2f}'.format)
 
 def get_missing_months(df, date_column="date"):
     # Ensure the date column is in datetime format
@@ -23,7 +24,7 @@ def get_missing_months(df, date_column="date"):
     months_to_complete_quarter = (3 - ((latest_month ) % 3)) % 3
 
     # Total months to add: remaining months of current quarter + 2 quarters (6 months)
-    total_months_to_add = months_to_complete_quarter + 6
+    total_months_to_add = months_to_complete_quarter + 3
 
     return total_months_to_add
 
@@ -54,7 +55,7 @@ def add_missing_months(df, date_column="date"):
 
 
 
-def rolling_window_benchmark_evaluation(df, window_size=(12*28)):
+def rolling_window_benchmark_evaluation(df, window_size=(12*20)):
     df['date'] = pd.to_datetime(df['date'])  # Ensure 'date' is in datetime format
     df = df.sort_values(by='date', ascending=False)
     
@@ -81,14 +82,24 @@ def rolling_window_benchmark_evaluation(df, window_size=(12*28)):
     #df_sorted = df.sort_values(by='date', ascending=True).reset_index(drop=True)
     
     # Loop through the trimmed dataframe using a fixed rolling window size
-    for start_index in range(len(df_trimmed) - window_size):
-        #print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[start_index + window_size - 1]['date'].date())
+    remove_covid = 12*5
+    for start_index in range(len(df_trimmed) - window_size - remove_covid):
+        print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[start_index + window_size - 1]['date'].date())
         
         # Get the historical data window of size `window_size`
         end_index = start_index + window_size
         historical_data = df_trimmed.iloc[start_index:end_index]
 
         historical_data = historical_data.sort_values(by='date', ascending=False).reset_index(drop=True)
+
+        #print("before bfill", historical_data.head(10))
+        #print("before shift up", historical_data.head(10))
+
+        # bfill gdp here
+        #historical_data['GDP'] = historical_data['GDP'].fillna(method='bfill')
+        #historical_data['GDP'] = historical_data['GDP'].shift(-1)
+
+        #print("after shift up", historical_data.head(10))
 
         historical_data = add_missing_months(historical_data, date_column="date")
 
@@ -109,11 +120,11 @@ def rolling_window_benchmark_evaluation(df, window_size=(12*28)):
 
         
         # Get actual GDP value for the current period (the next row outside the window)
-        actual_gdp = df_trimmed.iloc[end_index]['GDP']  # The next row after the window  
+        #actual_gdp = df_trimmed.iloc[end_index]['GDP']  # The next row after the window  # this will no longer be the actual gdp. actual gdp will now be for the quarter that the last month in the window belongs to
 
-        date = df_trimmed.iloc[end_index]['date']
+        date = df_trimmed.iloc[end_index-1]['date']
 
-        #print("forecasting starts on", date)
+        print("forecasting this date revision", date)
         
         # Adjust the date to the first month of the quarter
         if date.month < 4:  # January, February, March
@@ -126,8 +137,36 @@ def rolling_window_benchmark_evaluation(df, window_size=(12*28)):
             adjusted_date = pd.to_datetime(f'{date.year}-10-01')
 
         # Forecast using model_ADL_bridge (for the rolling window)
+
+        # remove last available GDP THIS STEP IS VERY IMPORTANT AND HAS TO BE DONE BEFORE DATA IS FED INTO MODEL TO PREVENT LEAKAGE 
+        # in that case I need to remove gdp_growth too becos this is what im predicting
+
+        # Store and remove last and second last non-NaN GDP values
+        gdp_valid_indices = historical_data['GDP'].dropna().index
+        last_gdp = second_last_gdp = None
+        if len(gdp_valid_indices) >= 1:
+            last_gdp = historical_data.at[gdp_valid_indices[-1], 'GDP']
+            historical_data.at[gdp_valid_indices[-1], 'GDP'] = float('nan')
+        if len(gdp_valid_indices) >= 2:
+            second_last_gdp = historical_data.at[gdp_valid_indices[-2], 'GDP']
+            historical_data.at[gdp_valid_indices[-2], 'GDP'] = float('nan')
+
+        actual_gdp = last_gdp
+
+        # Store and remove last and second last non-NaN GDP_Growth values
+        gdp_growth_valid_indices = historical_data['gdp_growth'].dropna().index
+        last_gdp_growth = second_last_gdp_growth = None
+        if len(gdp_growth_valid_indices) >= 1:
+            last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-1], 'gdp_growth']
+            historical_data.at[gdp_growth_valid_indices[-1], 'gdp_growth'] = float('nan')
+        if len(gdp_growth_valid_indices) >= 2:
+            second_last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth']
+            historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth'] = float('nan')
+
+        #print("prediction df", historical_data.tail(13))
+
         model_adl_output = model_ADL_bridge(historical_data)  # Get the model output DataFrame
-        #print("model_adl_output", model_adl_output)
+        print("model_adl_output", model_adl_output)
 
         # insert forecast from RF BRIDGE
         
@@ -135,20 +174,23 @@ def rolling_window_benchmark_evaluation(df, window_size=(12*28)):
         month_of_forecast = date.month  # This will help decide which forecast to use
 
         if month_of_forecast in [1, 4, 7, 10]:  # January, April, July, October -> m1, m4
-            model_adl_m1 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m1 forecast
-            model_adl_m4 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m4 forecast
+            model_adl_m1 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m1 forecast
+            model_adl_m4 = model_adl_output.iloc[2]['Nowcasted_GDP']  # m4 forecast
+            print("m1 revision")
         elif month_of_forecast in [2, 5, 8, 11]:  # February, May, August, November -> m2, m5
-            model_adl_m2 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m2 forecast
-            model_adl_m5 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m5 forecast
+            model_adl_m2 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m2 forecast
+            model_adl_m5 = model_adl_output.iloc[2]['Nowcasted_GDP']  # m5 forecast
+            print("m2 revision")
         else:  # March, June, September, December -> m3, m6
-            model_adl_m3 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m3 forecast
-            model_adl_m6 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m6 forecast
+            model_adl_m3 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m3 forecast
+            model_adl_m6 = model_adl_output.iloc[2]['Nowcasted_GDP']  # m6 forecast
+            print("m3 revision")
         
         # AR Forecast — only run model_AR on the first month of each quarter
         if month_of_forecast in [1, 4, 7, 10]:
             model_ar_output = model_AR(historical_data)
-            model_ar_h1 = model_ar_output.iloc[0]['Nowcasted_GDP']
-            model_ar_h2 = model_ar_output.iloc[1]['Nowcasted_GDP']
+            model_ar_h1 = model_ar_output.iloc[1]['Nowcasted_GDP']
+            model_ar_h2 = model_ar_output.iloc[2]['Nowcasted_GDP']
 
             # insert forecast from RF BENCHMARK
             # model_RF_benchmark = model_RF_benchmark(historical_data)
@@ -215,9 +257,46 @@ def calculate_rmsfe(df):
 
     # Compute RMSFE for each forecast column
     for col in forecast_cols:
-        error = result[col] - result['actual gdp']
-        rmsfe = np.sqrt((error ** 2).mean(skipna=True))
+        # Drop rows where either forecast or actual is NaN
+        valid_rows = result[[col, 'actual gdp']].dropna()
+        error = valid_rows[col] - valid_rows['actual gdp']
+        rmsfe = np.sqrt((error ** 2).mean())
         result[f'RMSFE_{col}'] = rmsfe
+
+    return result
+
+def calculate_row_error(df):
+    df['date'] = pd.to_datetime(df['date'])
+
+    def get_quarter_start_date(d):
+        if d.month < 4:
+            return pd.Timestamp(f"{d.year}-01-01")
+        elif d.month < 7:
+            return pd.Timestamp(f"{d.year}-04-01")
+        elif d.month < 10:
+            return pd.Timestamp(f"{d.year}-07-01")
+        else:
+            return pd.Timestamp(f"{d.year}-10-01")
+
+    df['quarter_start'] = df['date'].apply(get_quarter_start_date)
+
+    agg_dict = {
+        col: 'first' for col in df.columns
+        if col not in ['date', 'quarter_start']
+    }
+
+    result = df.groupby('quarter_start').agg(agg_dict).reset_index()
+    result = result.rename(columns={'quarter_start': 'date'})
+
+    forecast_cols = [
+        'model_AR h1', 'model_AR h2',
+        'model_ADL_bridge m1', 'model_ADL_bridge m2', 'model_ADL_bridge m3',
+        'model_ADL_bridge m4', 'model_ADL_bridge m5', 'model_ADL_bridge m6'
+    ]
+
+    # Calculate row-by-row forecast errors (prediction - actual)
+    for col in forecast_cols:
+        result[f'Error_{col}'] = result[col] - result['actual gdp']
 
     return result
 
@@ -226,6 +305,7 @@ file_path = "../Data/bridge_df.csv"
 df = pd.read_csv(file_path)
 res = rolling_window_benchmark_evaluation(df)
 print(res)
+print(calculate_row_error(res))
 print(calculate_rmsfe(res))
 
 
