@@ -16,7 +16,7 @@ file_path = "../Data/tree_df_test.csv"
 #df = pd.read_csv(file_path)
 
 
-def model_rf(df):
+def model_RF(df):
 
     df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
     df.drop(columns=["dummy"], inplace=True) #drop dummy col
