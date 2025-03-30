@@ -4,9 +4,6 @@ import numpy as np
 from datetime import datetime
 from statsmodels.tsa.ar_model import AutoReg
 
-import os
-import sys
-
 def record_months_to_forecast(df, predictors):
     """
     Identifies months that need forecasting for each predictor.
