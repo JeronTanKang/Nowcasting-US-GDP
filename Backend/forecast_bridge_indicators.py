@@ -61,8 +61,6 @@ def record_months_to_forecast(df, predictors):
     return months_to_forecast
 
 def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag2","gdp_growth_lag3","gdp_growth_lag4"]):
-    df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
-    df = df.set_index("date") 
     """
     Forecasts missing values for predictor variables using AutoRegressive models.
 
@@ -78,6 +76,8 @@ def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag2"
     Returns:
     - pd.DataFrame: DataFrame with missing values filled for the predictor variables based on AR model predictions. The original 'date' column is maintained.
     """
+    df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
+    df = df.set_index("date") 
 
     predictors = df.columns.difference(exclude)
 
