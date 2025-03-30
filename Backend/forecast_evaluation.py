@@ -8,6 +8,8 @@ from model_ADL_bridge import model_ADL_bridge
 from model_RF import model_RF
 from model_RF_bridge import model_RF_bridge
 
+from data_processing import get_missing_months, add_missing_months
+
 pd.set_option('display.float_format', '{:.2f}'.format)
 
 model_and_horizon =[
@@ -18,53 +20,6 @@ model_and_horizon =[
         'model_RF_bridge m1', 'model_RF_bridge m2', 'model_RF_bridge m3',
         'model_RF_bridge m4', 'model_RF_bridge m5', 'model_RF_bridge m6'
     ]
-
-def get_missing_months(df, date_column="date"):
-    # Ensure the date column is in datetime format
-    df[date_column] = pd.to_datetime(df[date_column])
-
-    # Get the latest date in the dataset
-    latest_date = df[date_column].max()
-    
-    # Get the month number (1 to 12)
-    latest_month = latest_date.month
-
-    #print("latest_month", latest_month)
-    
-    # Calculate how many months remain to complete the current quarter
-    months_to_complete_quarter = (3 - ((latest_month ) % 3)) % 3
-
-    # Total months to add: remaining months of current quarter + 2 quarters (6 months)
-    total_months_to_add = months_to_complete_quarter + 3
-
-    return total_months_to_add
-
-def add_missing_months(df, date_column="date"):
-    # Calculate how many months are missing
-    num_extra_rows = get_missing_months(df, date_column)
-
-    if num_extra_rows > 0:
-        # Get the latest date in the dataset
-        latest_date = pd.to_datetime(df[date_column].max())
-
-        # Generate new dates starting from the next month after the latest date
-        new_dates = pd.date_range(
-            start=latest_date + pd.DateOffset(months=1),
-            periods=num_extra_rows,
-            freq='MS'
-        )
-
-        # Create new rows with NaN values except the date column
-        new_rows = pd.DataFrame({date_column: new_dates})
-
-        # Append to the original dataframe
-        df = pd.concat([df, new_rows], ignore_index=True)
-
-    # Sort and reset index
-    df = df.sort_values(by=date_column).reset_index(drop=True)
-    return df
-
-
 
 def rolling_window_benchmark_evaluation(df, df_nonlinear, window_size=(12*20)):
     df['date'] = pd.to_datetime(df['date'])  # Ensure 'date' is in datetime format
@@ -304,6 +259,37 @@ def rolling_window_benchmark_evaluation(df, df_nonlinear, window_size=(12*20)):
     
     return results
 
+def calculate_row_error(df):
+    df['date'] = pd.to_datetime(df['date'])
+
+    def get_quarter_start_date(d):
+        if d.month < 4:
+            return pd.Timestamp(f"{d.year}-01-01")
+        elif d.month < 7:
+            return pd.Timestamp(f"{d.year}-04-01")
+        elif d.month < 10:
+            return pd.Timestamp(f"{d.year}-07-01")
+        else:
+            return pd.Timestamp(f"{d.year}-10-01")
+
+    df['quarter_start'] = df['date'].apply(get_quarter_start_date)
+
+    agg_dict = {
+        col: 'first' for col in df.columns
+        if col not in ['date', 'quarter_start']
+    }
+
+    result = df.groupby('quarter_start').agg(agg_dict).reset_index()
+    result = result.rename(columns={'quarter_start': 'date'})
+
+    forecast_cols = model_and_horizon
+
+    # Calculate row-by-row forecast errors (prediction - actual)
+    for col in forecast_cols:
+        result[f'Error_{col}'] = result[col] - result['actual gdp']
+
+    return result
+
 def calculate_rmsfe(df):
     # Ensure date column is in datetime format
     df['date'] = pd.to_datetime(df['date'])
@@ -340,37 +326,6 @@ def calculate_rmsfe(df):
         error = valid_rows[col] - valid_rows['actual gdp']
         rmsfe = np.sqrt((error ** 2).mean())
         result[f'RMSFE_{col}'] = rmsfe
-
-    return result
-
-def calculate_row_error(df):
-    df['date'] = pd.to_datetime(df['date'])
-
-    def get_quarter_start_date(d):
-        if d.month < 4:
-            return pd.Timestamp(f"{d.year}-01-01")
-        elif d.month < 7:
-            return pd.Timestamp(f"{d.year}-04-01")
-        elif d.month < 10:
-            return pd.Timestamp(f"{d.year}-07-01")
-        else:
-            return pd.Timestamp(f"{d.year}-10-01")
-
-    df['quarter_start'] = df['date'].apply(get_quarter_start_date)
-
-    agg_dict = {
-        col: 'first' for col in df.columns
-        if col not in ['date', 'quarter_start']
-    }
-
-    result = df.groupby('quarter_start').agg(agg_dict).reset_index()
-    result = result.rename(columns={'quarter_start': 'date'})
-
-    forecast_cols = model_and_horizon
-
-    # Calculate row-by-row forecast errors (prediction - actual)
-    for col in forecast_cols:
-        result[f'Error_{col}'] = result[col] - result['actual gdp']
 
     return result
 
