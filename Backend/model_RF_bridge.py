@@ -10,7 +10,8 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from data_processing import aggregate_indicators, create_lag_features
-from model_ADL_bridge import forecast_indicators, record_months_to_forecast #AR(p) model 
+#from model_ADL_bridge import record_months_to_forecast, forecast_indicators
+from forecast_bridge_indicators import record_months_to_forecast, forecast_indicators
 #pd.set_option("display.max_columns", None)
 pd.reset_option("display.max_columns")
 
@@ -33,7 +34,7 @@ df1 = aggregate_indicators(df)
 # #Create lagged features
 exclude_columns = ["date", "GDP", "dummy"]
 df1 = create_lag_features(df1, exclude_columns, 4) 
-print("column names", df1.columns)
+#print("column names", df1.columns)
 
 # #Sort date again 
 df1 = df1.sort_values(by='date', ascending= True)
