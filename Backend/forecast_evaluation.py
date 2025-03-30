@@ -21,7 +21,7 @@ model_and_horizon =[
         'model_RF_bridge m4', 'model_RF_bridge m5', 'model_RF_bridge m6'
     ]
 
-def rolling_window_benchmark_evaluation(df, df_nonlinear, window_size=(12*20)):
+def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
     df['date'] = pd.to_datetime(df['date'])  # Ensure 'date' is in datetime format
     df = df.sort_values(by='date', ascending=False)
     df_nonlinear['date'] = pd.to_datetime(df_nonlinear['date'])  # Ensure 'date' is in datetime format
@@ -334,7 +334,7 @@ file_path1 = "../Data/bridge_df.csv"
 file_path2 = "../Data/tree_df.csv"
 df = pd.read_csv(file_path1)
 df_nonlinear = pd.read_csv(file_path2)
-res = rolling_window_benchmark_evaluation(df, df_nonlinear)
+res = generate_oos_forecast(df, df_nonlinear)
 row_error_df = calculate_row_error(res)
 rmsfe_df = calculate_rmsfe(res)
 print(res)
