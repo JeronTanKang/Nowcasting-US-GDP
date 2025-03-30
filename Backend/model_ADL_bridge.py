@@ -11,8 +11,8 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from data_processing import aggregate_indicators
-from forecast_bridge_indicators import record_months_to_forecast
-from forecast_bridge_indicators import forecast_indicators
+from forecast_bridge_indicators import record_months_to_forecast, forecast_indicators
+
 
 def fit_ols_model(df, drop_variables):
     """
