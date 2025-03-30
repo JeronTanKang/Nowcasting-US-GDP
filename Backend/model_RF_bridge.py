@@ -159,6 +159,6 @@ def model_RF_bridge(df_raw, save_model_path=None):
     else:
         print("⚠️ No rows to nowcast.")
 
-    return final_rf_model, nowcast_results
+    return nowcast_results
 
 print(model_RF_bridge(df))
