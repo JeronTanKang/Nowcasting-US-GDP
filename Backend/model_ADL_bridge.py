@@ -1,3 +1,14 @@
+"""
+This file contains functions for forecasting GDP and related indicators using an Autoregressive Distributed Lag (ADL) bridge model.
+The `fit_ols_model` function fits an Ordinary Least Squares (OLS) regression model to GDP growth using a set of predictor variables.
+The `model_ADL_bridge` function aggregates monthly indicators, fits an OLS model, and generates nowcasts for GDP growth and GDP levels iteratively.
+
+Functions:
+- `fit_ols_model`: Fits an OLS regression model to the given data with GDP as the dependent variable and a set of independent variables.
+- `model_ADL_bridge`: Aggregates monthly data to quarterly, fits an OLS model to estimate coefficients, forecasts missing values, and generates nowcasts for GDP growth and GDP levels.
+"""
+
+
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
@@ -16,15 +27,22 @@ from forecast_bridge_indicators import record_months_to_forecast, forecast_indic
 
 def fit_ols_model(df, drop_variables):
     """
-    Fits an OLS regression model using GDP as the dependent variable
-    and the other 10 indicators as independent variables.
+    Fits an Ordinary Least Squares regression model using GDP as the dependent variable 
+    and a set of indicators as independent variables.
+
+    This function applies an OLS regression model where the dependent variable is GDP growth, 
+    and the independent variables are a selection of economic indicators. It returns the fitted 
+    OLS model that can be used for forecasting.
 
     Args:
-    - df (pd.DataFrame): DataFrame with 'date' as index, 'GDP' column, and 10 indicators.
+    - df (pd.DataFrame): DataFrame containing 'date' as the index, 'GDP' and 'gdp_growth' columns, 
+                          along with other economic indicator columns.
+    - drop_variables (list): List of column names to exclude from the independent variables in the model (e.g., 'GDP', 'gdp_growth').
 
     Returns:
-    - results: Fitted OLS model
+    - model: Fitted OLS regression model.
     """
+
     #print("XXXXXX", df)
     df = df.set_index('date')
     df = df.iloc[::-1].reset_index(drop=True) # reverse row order
@@ -56,11 +74,26 @@ def fit_ols_model(df, drop_variables):
 
 
 def model_ADL_bridge(df):
+    """
+    Implements an Autoregressive Distributed Lag (ADL) bridge model for GDP forecasting.
 
+    This function processes monthly data, aggregates it to quarterly frequency, fits an OLS regression 
+    model, and forecasts missing values using iterated GDP growth predictions. It generates nowcasts for 
+    GDP growth and GDP levels, and returns the nowcasted GDP values.
+
+    The process involves:
+    1. Aggregating monthly data to quarterly frequency.
+    2. Fitting an OLS regression model on the aggregated data to estimate coefficients.
+    3. Forecasting missing indicator values using the `forecast_indicators` function.
+    4. Using iterated forecasting to predict GDP growth and GDP levels.
+
+    Args:
+    - df (pd.DataFrame): DataFrame with monthly data containing 'date', 'GDP', 'gdp_growth', and other economic indicators.
+
+    Returns:
+    - pd.DataFrame: DataFrame with the forecasted GDP growth and GDP levels for the forecasted dates.
     """
-    indicators in model_bridge will always be monthly frequency. 
-    they will only be converted to quarterly frequency when fitting the model to estimate coefficients, and when predicting nowcast (using aggregate_indicators)
-    """
+
     df["date"] = pd.to_datetime(df["date"])
     #print("ORIGINAL DF", df)
 

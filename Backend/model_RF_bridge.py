@@ -1,3 +1,22 @@
+"""
+This file contains the `model_RF_bridge` function, which implements a Random Forest model pipeline for forecasting GDP growth and generating nowcasts. 
+The process involves:
+1. Forecasting macroeconomic indicators using an AR(p) model.
+2. Aggregating and lagging the features.
+3. Training a Random Forest model using selected features.
+4. Generating nowcasts for missing GDP values based on the trained model.
+
+The pipeline follows these steps:
+- Feature selection via RFECV.
+- Training the Random Forest model on preprocessed data.
+- Forecasting GDP growth and converting it into GDP levels.
+- Optionally saving the trained model.
+
+Functions:
+- `get_selected_features`: Selects important features using RFECV with time series split.
+- `model_RF_bridge`: Full Random Forest pipeline for forecasting, aggregation, lagging, training, and nowcasting GDP.
+"""
+
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -49,8 +68,19 @@ Y = df1['gdp_growth']
 def get_selected_features(X, Y, n_splits=5):
     """
     Runs RFECV using time series split on preprocessed and lagged X, Y data.
-    Only training set is used for feature selection.
+    Only the training set is used for feature selection.
+
+    # Kelli pls specify here that this function is used only when u wna do feature selection. Once features are chosen, this part isnt run again to save computation time.
+
+    Args:
+        X (pd.DataFrame): Feature matrix containing the preprocessed and lagged macroeconomic data.
+        Y (pd.Series): Target vector containing GDP growth values.
+        n_splits (int): The number of splits for the time series cross-validation. Default is 5.
+
+    Returns:
+        list: A list of selected feature names after running RFECV.
     """
+
     # Time-based train-test split
     split_idx = int(len(X) * 0.8)
     X_train, Y_train = X.iloc[:split_idx], Y.iloc[:split_idx]
@@ -84,15 +114,21 @@ def get_selected_features(X, Y, n_splits=5):
 
 #selected_features = get_selected_features(X, Y)
 
-def model_RF_bridge(df_raw, save_model_path=None):
+def model_RF_bridge(df):
     """
     Full RF pipeline: forecast monthly -> aggregate -> lag -> train -> nowcast.
+
+    This function performs the following steps:
+    1. Forecasts macroeconomic indicators using AR(p).
+    2. Aggregates and lags the data.
+    3. Trains a Random Forest model.
+    4. Nowcasts missing GDP values.
+
     Args:
-        df_raw: Original raw DataFrame with monthly data.
-        save_model_path: Optional path to save the trained model.
+        df_raw (pd.DataFrame): Original raw DataFrame with monthly data.
+
     Returns:
-        final_rf_model: trained model
-        nowcast_results: DataFrame with nowcasted GDP and growth
+        pd.DataFrame: DataFrame with nowcasted GDP growth and GDP values for the forecasted period.
     """
 
     # ✅ Hardcoded selected features
@@ -107,8 +143,8 @@ def model_RF_bridge(df_raw, save_model_path=None):
     ]
 
     # 1. Forecast with AR(p) and preprocess
-    df_raw = df_raw.sort_values(by='date', ascending=True)
-    df_model = forecast_indicators(df_raw)
+    df = df.sort_values(by='date', ascending=True)
+    df_model = forecast_indicators(df)
     df_model = aggregate_indicators(df_model)
     df_model = create_lag_features(df_model, exclude_columns=["date", "GDP"], max_lag=4)
     df_model = df_model.sort_values(by='date', ascending=True)
@@ -129,13 +165,8 @@ def model_RF_bridge(df_raw, save_model_path=None):
     final_rf_model = RandomForestRegressor(random_state=42)
     final_rf_model.fit(X, Y)
 
-    # 6. Save model if needed
-    if save_model_path:
-        os.makedirs(os.path.dirname(save_model_path), exist_ok=True)
-        joblib.dump(final_rf_model, save_model_path)
-        print(f"✅ Model saved to {save_model_path}")
 
-    # 7. Nowcast for missing quarters
+    # 6. Nowcast for missing quarters
     recent_quarters_mask = df_model.index >= df_model.index[-4]
     nowcast_mask = (df_model["GDP"].isna()) | ((df_model["gdp_growth"].isna()) & recent_quarters_mask)
     forecast_df = df_model[nowcast_mask].copy()

@@ -1,3 +1,18 @@
+"""
+This file contains the `model_RF` function, which generates GDP forecasts using Random Forest models for multiple forecast horizons (1-step, 2-step, and 3-step forecasts). 
+It leverages macroeconomic indicators and their lagged values to predict future GDP growth, and then uses the forecasted GDP growth to calculate the nowcasted GDP levels for the next periods.
+
+The process includes:
+1. Aggregating macroeconomic data to quarterly frequency.
+2. Creating lagged features for the indicators.
+3. Training three Random Forest models for 1-step, 2-step, and 3-step forecasts.
+4. Using the trained models to predict GDP growth and convert it to GDP levels.
+5. Returning a DataFrame with the forecasted GDP growth and nowcasted GDP for the forecasted periods.
+
+Functions:
+- `model_RF`: Generates GDP nowcasts using Random Forest models for different forecast horizons (1-step, 2-step, and 3-step).
+"""
+
 import pandas as pd
 import pandas as pd
 import numpy as np
@@ -17,6 +32,25 @@ file_path = "../Data/tree_df_test.csv"
 
 
 def model_RF(df):
+    """
+    Generates GDP forecasts using Random Forest models for multiple forecast horizons.
+
+    This function performs the following steps to generate GDP forecasts for the next 1, 2, and 3 periods:
+
+    1. Aggregates the macroeconomic data to quarterly frequency.
+    2. Prepares the dataset by creating lagged features of the indicators (GDP growth and other economic variables).
+    3. Splits the data into training and testing sets.
+    4. Trains three different Random Forest models for 1-step, 2-step, and 3-step forecasts.
+    5. For each forecast horizon, uses the corresponding model to predict GDP growth.
+    6. Converts the predicted GDP growth values to GDP levels (for each forecasted period).
+    7. Returns a DataFrame with the nowcasted GDP values.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing macroeconomic indicators, including 'GDP', 'gdp_growth', and its lagged values.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing forecasted GDP growth and nowcasted GDP for the next time steps (1, 2, and 3 periods).
+    """
 
     df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
     df.drop(columns=["dummy"], inplace=True) #drop dummy col

@@ -1,49 +1,32 @@
+"""
+This file contains utility functions for handling time series data, including operations to check for stationarity, make data stationary, 
+aggregate monthly data to quarterly data, and create lag features for modeling purposes. It also includes functions to handle missing months 
+and preprocess data by adding missing months to complete the current quarter.
+
+Functions:
+1. `aggregate_indicators`: Aggregates monthly frequency indicators to quarterly frequency, using predefined aggregation rules for each column.
+2. `create_lag_features`: Creates lagged features for time series data up to a specified maximum lag.
+3. `get_missing_months`: Calculates the number of months needed to complete the current quarter and adds missing months to the DataFrame.
+4. `add_missing_months`: Adds missing months to a DataFrame to complete the current quarter, ensuring monthly continuity.
+"""
+
 import pandas as pd
 from statsmodels.tsa.stattools import adfuller
 import numpy as np
 
 
-def is_stationary(series, significance_level=0.05):
-    if series.dropna().shape[0] < 2: # ensure enough data points
-        return False
-    
-    adf_test = adfuller(series.dropna(), autolag="AIC")
-    p_value = adf_test[1]
-    
-    return p_value <= significance_level  
-
-def make_stationary(df, max_diff=2):
-    df_stationary = df.copy()
-    differenced_counts = {}  # Track how many times differencing was applied
-
-    for col in df_stationary.columns:
-        diff_count = 0
-        temp_series = df_stationary[col].copy()
-
-        while diff_count < max_diff:
-            if is_stationary(temp_series):
-                break  # Stop if already stationary
-            
-            temp_series = temp_series.diff()  # Apply differencing
-            diff_count += 1
-        
-        df_stationary[col] = temp_series  # Assign transformed series
-        differenced_counts[col] = diff_count  # Store differencing count
-
-    return df_stationary, differenced_counts 
-
-
 def aggregate_indicators(df):
     """
-    THIS FUNCTION IS DIFF FROM THE REST MUST SET DATE AS INDEX NOOOOTTT RANGE INDEX
-    update on 23 march. seems like i can feed df in 
+    Aggregates monthly frequency indicators to quarterly frequency.
 
-    Function that takes in df with monthly frequency indicators and GDP.
-    - Converts indicators to quarterly frequency using specified aggregation rules.
-    - GDP remains unchanged (takes the only available value per quarter).
+    The function takes in a DataFrame with monthly frequency indicators and GDP, and converts them to quarterly frequency using 
+    predefined aggregation rules for each column. GDP remains unchanged, taking the only available value per quarter.
+
+    Args:
+        df (pd.DataFrame): DataFrame with monthly frequency data, including 'GDP' and other economic indicators.
 
     Returns:
-    - DataFrame with quarterly frequency.
+        pd.DataFrame: DataFrame with quarterly frequency data, including aggregated indicators and GDP.
     """
 
 
@@ -109,6 +92,20 @@ def aggregate_indicators(df):
 
 #Function to create lag features
 def create_lag_features(df, exclude_columns, max_lag):
+    """
+    Creates lag features for time series data.
+
+    This function creates lagged versions of each column in the DataFrame up to a specified maximum lag, 
+    excluding columns specified in `exclude_columns`.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing time series data.
+        exclude_columns (list): List of columns to exclude from lagging.
+        max_lag (int): The maximum lag to create for each column.
+
+    Returns:
+        pd.DataFrame: The DataFrame with lagged features added.
+    """
    
     if "date" in df.columns:  
         df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")  # Convert date if it exists
@@ -121,6 +118,17 @@ def create_lag_features(df, exclude_columns, max_lag):
     return df
 
 def get_missing_months(df, date_column="date"):
+    """
+    Calculates the number of months required to complete the current quarter.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the time series data.
+        date_column (str): The name of the date column in the DataFrame.
+
+    Returns:
+        int: The number of months required to complete the current quarter.
+    """
+
     # Ensure the date column is in datetime format
     df[date_column] = pd.to_datetime(df[date_column])
 
@@ -141,6 +149,17 @@ def get_missing_months(df, date_column="date"):
     return total_months_to_add
 
 def add_missing_months(df, date_column="date"):
+    """
+    Adds missing months to a DataFrame to complete the current quarter.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the time series data.
+        date_column (str): The name of the date column in the DataFrame.
+
+    Returns:
+        pd.DataFrame: The DataFrame with missing months added.
+    """
+
     # Calculate how many months are missing
     num_extra_rows = get_missing_months(df, date_column)
 

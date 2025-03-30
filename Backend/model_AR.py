@@ -1,3 +1,11 @@
+"""
+This file contains a function to generate GDP nowcasts using an AutoRegressive (AR) model.
+The `model_AR` function trains an AR model on macroeconomic indicators and returns the forecasted GDP for the next time step.
+
+Function:
+- `model_AR`: Uses AutoRegressive (AR) modeling to nowcast GDP for the next available quarter based on macroeconomic data.
+"""
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -7,20 +15,26 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'B
 from data_processing import aggregate_indicators
 
 
-def model_AR(df, target_variable: str = "GDP"):
+def model_AR(df):
     """
-    Takes a DataFrame of macroeconomic data, trains an AR (AutoRegressive) model, 
-    and returns the GDP nowcast for the next time step.
+    Generates a GDP nowcast for the next quarter using an AutoRegressive (AR) model on macroeconomic indicators.
 
-    1. aggregate data to quarterly
-    2. 
+    This function performs the following steps to generate GDP nowcasts for the next quarter:
+
+    1. Aggregates the macroeconomic data to quarterly frequency.
+    2. Selects the relevant variables, including GDP, its growth rate, and lagged growth values.
+    3. Trains an Ordinary Least Squares (OLS) model to predict GDP growth based on the selected variables.
+    4. Uses the predicted GDP growth to calculate GDP levels for the forecasted quarter.
+
+    The AR model uses the last 2 periods of GDP growth to predict the next quarter's growth, and iteratively 
+    forecasts future GDP levels using the previous quarter’s results.
 
     Args:
-        df (pd.DataFrame): DataFrame containing macroeconomic indicators.
-        target_variable (str): Column name to nowcast (default: "GDP").
+        df (pd.DataFrame): DataFrame containing macroeconomic indicators. Only 'GDP', 'gdp_growth', and its lagged values are needed.
 
     Returns:
-        float: Forecasted GDP value for the next available quarter.
+        pd.DataFrame: A DataFrame with the forecasted GDP growth and the nowcasted GDP values for the next time step, 
+                      including the forecasted 'gdp_growth_forecast' and 'Nowcasted_GDP' columns for the forecasted period.
     """
 
     # In the future when refactoring the code make sure that these following 3 lines are done once at the start of data cleaning and preprocessing

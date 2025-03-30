@@ -1,3 +1,14 @@
+"""
+This file contains functions for generating out-of-sample (OOS) forecasts, calculating forecast errors, and computing the Root Mean Squared Forecast Error (RMSFE) for different forecasting models.
+
+The primary functions in this file are:
+1. `generate_oos_forecast`: This function generates out-of-sample forecasts for multiple models (AR, ADL bridge, RF, RF bridge) using a rolling window approach.
+2. `calculate_row_error`: This function calculates the row-level forecast error (prediction minus actual) for each model.
+3. `calculate_rmsfe`: This function computes the Root Mean Squared Forecast Error (RMSFE) for each forecast model.
+
+It also includes helper functions to handle missing months and preprocess data.
+"""
+
 import numpy as np
 import pandas as pd 
 import os
@@ -22,6 +33,22 @@ model_and_horizon =[
     ]
 
 def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
+    """
+    Generates out-of-sample forecasts using a rolling window approach for multiple models.
+
+    This function forecasts GDP growth and GDP levels for each forecast horizon (from multiple models: AR, ADL bridge, RF, RF bridge) 
+    by iterating over a fixed-size rolling window and applying the appropriate models for each window.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the raw data with GDP and other economic indicators.
+        df_nonlinear (pd.DataFrame): DataFrame containing additional non-linear data for forecasting.
+        window_size (tuple): The rolling window size for training (default is 240 months, equivalent to 20 years).
+
+    Returns:
+        pd.DataFrame: A DataFrame containing forecasted GDP and growth for each model.
+    """
+
+
     df['date'] = pd.to_datetime(df['date'])  # Ensure 'date' is in datetime format
     df = df.sort_values(by='date', ascending=False)
     df_nonlinear['date'] = pd.to_datetime(df_nonlinear['date'])  # Ensure 'date' is in datetime format
@@ -260,6 +287,19 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
     return results
 
 def calculate_row_error(df):
+    """
+    Calculates row-level forecast errors (prediction - actual) for multiple forecast models.
+
+    This function groups the data by the first month of each quarter and computes the forecast errors for each model. 
+    The forecast errors are calculated as the difference between the forecasted values and the actual GDP values.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the actual GDP values and the forecasted values from various models.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the forecast errors for each model, along with the actual GDP values for each row.
+    """
+
     df['date'] = pd.to_datetime(df['date'])
 
     def get_quarter_start_date(d):
@@ -291,6 +331,19 @@ def calculate_row_error(df):
     return result
 
 def calculate_rmsfe(df):
+    """
+    Calculates the Root Mean Squared Forecast Error (RMSFE) for each model's forecast.
+
+    This function groups the data by the first month of each quarter and computes the RMSFE for each forecast model.
+    The RMSFE is calculated as the square root of the mean squared error between the forecasted values and the actual GDP values.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the actual GDP values and the forecasted values from various models.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the RMSFE for each forecast model.
+    """
+    
     # Ensure date column is in datetime format
     df['date'] = pd.to_datetime(df['date'])
 
