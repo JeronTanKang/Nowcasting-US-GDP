@@ -4,6 +4,9 @@ import numpy as np
 from datetime import datetime
 from statsmodels.tsa.ar_model import AutoReg
 
+import warnings
+warnings.simplefilter(action='ignore', category=Warning)
+
 def record_months_to_forecast(df, predictors):
     """
     Identifies months that need forecasting for each predictor.
@@ -43,6 +46,7 @@ def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag2"
     df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
     df = df.set_index("date") 
 
+
     """ 
     Handles missing values only for predictor variables (not GDP).
     - Starts 3 months before the current month.
@@ -76,7 +80,7 @@ def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag2"
                     final_model = AutoReg(data_before_forecast, lags=3, old_names=False).fit()
 
                     # Predict the missing value for the current date
-                    predicted_value = final_model.predict(start=len(data_before_forecast), end=len(data_before_forecast))[0]
+                    predicted_value = final_model.predict(start=len(data_before_forecast), end=len(data_before_forecast)).iloc[0]
 
                     # Update the DataFrame with the predicted value at the missing date
                     df.loc[forecast_date, col] = predicted_value
