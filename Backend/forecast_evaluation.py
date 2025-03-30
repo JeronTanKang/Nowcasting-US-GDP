@@ -170,7 +170,7 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
         #print("model_adl_output", model_adl_output)
 
         #### FORECAST FROM RF BRIDGE ####
-        model_rf_bridge_output = train_and_nowcast_rf(historical_data_tree)  # Get the model output DataFrame
+        model_rf_bridge_output = model_RF_bridge(historical_data_tree)  # Get the model output DataFrame
         #print("model_adl_output", model_adl_output)
 
 
@@ -212,7 +212,7 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
 
             # insert forecast from RF BENCHMARK
             #print("df fed into RF model", historical_data_tree.tail(15))
-            model_RF_output = model_rf(historical_data_tree)
+            model_RF_output = model_RF(historical_data_tree)
             model_RF_h1 = model_RF_output.iloc[1]['Nowcasted_GDP']
             model_RF_h2 = model_RF_output.iloc[2]['Nowcasted_GDP']
 
