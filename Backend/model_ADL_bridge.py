@@ -68,7 +68,7 @@ def fit_ols_model(df, drop_variables):
 
     model = sm.OLS(Y, X).fit()
 
-    print(model.summary())
+    #print(model.summary())
     
     return model
 
