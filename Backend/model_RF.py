@@ -53,7 +53,9 @@ def model_RF(df):
     """
 
     df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
-    df.drop(columns=["dummy"], inplace=True) #drop dummy col
+
+    if "dummy" in df.columns:
+        df.drop(columns=["dummy"], inplace=True)
 
     #extract col names for later use
     cols_to_keep = ['date', 'GDP', "gdp_growth"]
