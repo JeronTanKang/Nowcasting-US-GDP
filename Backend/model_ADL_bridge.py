@@ -68,7 +68,7 @@ def fit_ols_model(df, drop_variables):
 
     model = sm.OLS(Y, X).fit()
 
-    #print(model.summary())
+    print(model.summary())
     
     return model
 
@@ -121,12 +121,13 @@ def model_ADL_bridge(df):
                     "junk_bond_spread_lag2",
                     "junk_bond_spread_lag3", "junk_bond_spread_lag4",  
                     "Industrial_Production_lag3",
+                    "Trade_Balance",
                     #"Trade_Balance_lag1",
                     "Interest_Rate_lag1",
                     #"dummy",
                     #"Construction_Spending",
-                    #"yield_spread",
-                    #"yield_spread_lag1",
+                    "yield_spread",
+                    "yield_spread_lag1",
                     "yield_spread_lag2","yield_spread_lag3","yield_spread_lag4"
                      ]
     ##########################
