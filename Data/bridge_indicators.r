@@ -190,8 +190,8 @@ df_lagged <- lag_gdp_growth(df_lagged, lags = 4)
 df_lagged <- df_lagged %>% arrange(desc(date))
 
 #only select indicators that are needed
-final_df <- df_lagged %>% select(date, GDP, gdp_growth, gdp_growth_lag2, gdp_growth_lag3, gdp_growth_lag4,
-                                 Nonfarm_Payrolls, Construction_Spending, Trade_Balance_lag1, Industrial_Production_lag1,
+final_df <- df_lagged %>% select(date, GDP, gdp_growth, gdp_growth_lag1,gdp_growth_lag2, gdp_growth_lag3, gdp_growth_lag4,
+                                 Nonfarm_Payrolls, Construction_Spending,Trade_Balance, Trade_Balance_lag1, Industrial_Production_lag1,
                                  Industrial_Production_lag3, Housing_Starts, Capacity_Utilization, New_Orders_Durable_Goods, 
                                  Interest_Rate_lag1, Unemployment, junk_bond_spread, junk_bond_spread_lag1,
                                  junk_bond_spread_lag2, junk_bond_spread_lag3, junk_bond_spread_lag4, yield_spread,
