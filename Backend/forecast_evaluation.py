@@ -94,6 +94,15 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
         historical_data = df_trimmed.iloc[start_index:end_index]
         historical_data_tree = df_trimmed_tree.iloc[start_index:end_index]
 
+        #drop dummy variable if the window does not contain covid recession period
+        if 1 not in historical_data['dummy'].values:
+            historical_data = historical_data.drop(columns=['dummy'])
+            print('dropped dummy')
+
+        if 1 not in historical_data_tree['dummy'].values:
+            historical_data_tree = historical_data_tree.drop(columns=['dummy'])
+            print('dropped dummy for tree')
+
         historical_data = historical_data.sort_values(by='date', ascending=False).reset_index(drop=True)
         historical_data_tree = historical_data_tree.sort_values(by='date', ascending=False).reset_index(drop=True)
 
