@@ -61,6 +61,9 @@ def model_AR(df):
     y = train_lagged["gdp_growth"]
     X = sm.add_constant(X)
 
+    X = X.apply(pd.to_numeric, errors='coerce')
+    y = pd.to_numeric(y, errors='coerce')
+
     ols_model = sm.OLS(y, X).fit()
     #print("OLS Coefficients:\n", ols_model.params)
     #print(ols_model.summary())
