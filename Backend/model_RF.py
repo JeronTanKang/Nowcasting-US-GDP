@@ -22,13 +22,14 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 #pd.reset_option("display.max_columns")
+pd.set_option("display.max_columns", None)
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from data_processing import aggregate_indicators, create_lag_features
 from model_ADL_bridge import forecast_indicators, record_months_to_forecast #AR(p) model 
-file_path = "../Data/tree_df_test.csv"
-#df = pd.read_csv(file_path)
+file_path = "../Data/tree_df.csv"
+df = pd.read_csv(file_path)
 
 
 def model_RF(df):
@@ -54,11 +55,9 @@ def model_RF(df):
 
     df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
 
-    if "dummy" in df.columns:
-        df.drop(columns=["dummy"], inplace=True)
 
     #extract col names for later use
-    cols_to_keep = ['date', 'GDP', "gdp_growth"]
+    cols_to_keep = ['date', 'GDP', "gdp_growth", "dummy"]
     contemp_indicators = [col for col in df.columns if col not in cols_to_keep]
 
     #Sort date in ascending order
@@ -66,7 +65,7 @@ def model_RF(df):
 
     #Aggregate Data
     df_aggregated = aggregate_indicators(df) #gdp_growth is excluded
-    exclude_columns = ["date", "GDP"] #df to exclude later when laggin indicators
+    exclude_columns = ["date", "GDP", "dummy"] #df to exclude later when laggin indicators
 
     #create a df to store nowcasted values
     df_to_pred = df_aggregated[df_aggregated["GDP"].isnull() & (df_aggregated.index >= df_aggregated.index[-4])]
@@ -78,7 +77,6 @@ def model_RF(df):
     #drop contemporary indicators and gdp_growth_lag1
     df_lagged = df_lagged.drop(columns=contemp_indicators + ["gdp_growth_lag1"])
     df_lagged = df_lagged.dropna(subset=["GDP"])
-
     #drop lags of each indicator depending on how many steps model is predicting
     def prepare_model_data(df, drop_lags, drop_growth_lag):
         df_model = df.drop(columns=[col for col in df.columns if any(col.endswith(f'_lag{i}') for i in drop_lags)])
@@ -88,10 +86,16 @@ def model_RF(df):
         df_model = df_model.sort_values(by='date', ascending=True)
         #Drop NaN values created by lagging 
         df_model = df_model.dropna()
-        #Drop 'Date' before defining X 
+        #Drop 'Date' before defining X
         X = df_model.drop(columns=["gdp_growth", "GDP", "date"])
         y = df_model['gdp_growth']
         return train_test_split(X, y, test_size=0.2, shuffle=False)
+
+    #recession dates
+    recession_dates = pd.to_datetime([
+        "2020-04-01", "2020-05-01", "2020-06-01",
+        "2020-07-01", "2020-08-01", "2020-09-01"
+    ])
 
     #Model 1 (1 step forecast, so take lag1 to lag 4)
     X_train_1, X_test_1, Y_train_1, Y_test_1 = prepare_model_data(df_lagged, [5, 6], None)
@@ -100,7 +104,7 @@ def model_RF(df):
     ##Model 2 (2 step forecast, so take lag2 to lag5)
     X_train_2, X_test_2, Y_train_2, Y_test_2 = prepare_model_data(df_lagged, [1, 6], ["gdp_growth_lag2"])
     rf_model_2 = RandomForestRegressor(random_state=42).fit(X_train_2, Y_train_2)
-
+    
     ##Model 3 (3 step forecast, so take lag3 to lag6)
     X_train_3, X_test_3, Y_train_3, Y_test_3 = prepare_model_data(df_lagged, [1, 2], ["gdp_growth_lag3"])
     rf_model_3 = RandomForestRegressor(random_state=42).fit(X_train_3, Y_train_3)
