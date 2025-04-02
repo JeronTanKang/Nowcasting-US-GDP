@@ -21,6 +21,8 @@ data = pd.read_csv(data_path)
 # Let user select model
 model_choice = st.selectbox("Select a Model for GDP Nowcasting", ("ADL Model", "AR Model"))
 
+# res = generate_oos_forecast(df, df_nonlinear, time_travel_date="fill date here", usage="single_period_forecast")
+
 # Generate nowcast
 if model_choice == "ADL Model":
     st.info("Running ADL model...")
