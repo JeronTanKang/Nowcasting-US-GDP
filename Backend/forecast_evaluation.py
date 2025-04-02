@@ -90,7 +90,7 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
     # start index = 0
     # end index = end of forecast,
     if usage == "multi_period_forecast":
-        range_for_start_indices = len(df_trimmed) - window_size - remove_covid
+        range_for_start_indices = len(df_trimmed) - window_size #- remove_covid
     elif usage == "single_period_forecast":
         range_for_start_indices = 6 # only 6 loops for 6 months forecast 
 
@@ -155,9 +155,9 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
         if len(gdp_valid_indices) >= 1:
             last_gdp = historical_data.at[gdp_valid_indices[-1], 'GDP']
             historical_data.at[gdp_valid_indices[-1], 'GDP'] = float('nan')
-        if len(gdp_valid_indices) >= 2:
-            second_last_gdp = historical_data.at[gdp_valid_indices[-2], 'GDP']
-            historical_data.at[gdp_valid_indices[-2], 'GDP'] = float('nan')
+        #if len(gdp_valid_indices) >= 2:
+        #    second_last_gdp = historical_data.at[gdp_valid_indices[-2], 'GDP']
+        #    historical_data.at[gdp_valid_indices[-2], 'GDP'] = float('nan')
 
         if "dummy" in historical_data.columns:
             if (historical_data.tail(9)['dummy'] == 1).any(): # check last 9 rows since this is the last 3 quarters that will be forecast
@@ -170,9 +170,9 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
         if len(gdp_valid_indices_tree) >= 1:
             #last_gdp_tree = historical_data_tree.at[gdp_valid_indices_tree[-1], 'GDP']
             historical_data_tree.at[gdp_valid_indices_tree[-1], 'GDP'] = float('nan')
-        if len(gdp_valid_indices_tree) >= 2:
-            #second_last_gdp_tree = historical_data_tree.at[gdp_valid_indices_tree[-2], 'GDP']
-            historical_data_tree.at[gdp_valid_indices_tree[-2], 'GDP'] = float('nan')
+        #if len(gdp_valid_indices_tree) >= 2:
+        #    #second_last_gdp_tree = historical_data_tree.at[gdp_valid_indices_tree[-2], 'GDP']
+        #    historical_data_tree.at[gdp_valid_indices_tree[-2], 'GDP'] = float('nan')
 
         if "dummy" in historical_data_tree.columns:
             if (historical_data_tree.tail(9)['dummy'] == 1).any(): # check last 9 rows since this is the last 3 quarters that will be forecast
@@ -188,9 +188,9 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
         if len(gdp_growth_valid_indices) >= 1:
             #last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-1], 'gdp_growth']
             historical_data.at[gdp_growth_valid_indices[-1], 'gdp_growth'] = float('nan')
-        if len(gdp_growth_valid_indices) >= 2:
-            #second_last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth']
-            historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth'] = float('nan')
+        #if len(gdp_growth_valid_indices) >= 2:
+        #    #second_last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth']
+        #    historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth'] = float('nan')
 
         #repeat above for tree
         gdp_growth_valid_indices_tree = historical_data_tree['gdp_growth'].dropna().index
@@ -198,9 +198,9 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
         if len(gdp_growth_valid_indices_tree) >= 1:
             #last_gdp_growth = historical_data_tree.at[gdp_growth_valid_indices_tree[-1], 'gdp_growth']
             historical_data_tree.at[gdp_growth_valid_indices_tree[-1], 'gdp_growth'] = float('nan')
-        if len(gdp_growth_valid_indices_tree) >= 2:
-            #second_last_gdp_growth = historical_data_tree.at[gdp_growth_valid_indices_tree[-2], 'gdp_growth']
-            historical_data_tree.at[gdp_growth_valid_indices_tree[-2], 'gdp_growth'] = float('nan')
+        #if len(gdp_growth_valid_indices_tree) >= 2:
+        #    #second_last_gdp_growth = historical_data_tree.at[gdp_growth_valid_indices_tree[-2], 'gdp_growth']
+        #    historical_data_tree.at[gdp_growth_valid_indices_tree[-2], 'gdp_growth'] = float('nan')
 
         #print("prediction df", historical_data.tail(13))
 
@@ -216,27 +216,27 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
         month_of_forecast = forecast_date.month  # This will help decide which forecast to use
 
         if month_of_forecast in [1, 4, 7, 10]:  # January, April, July, October -> m1, m4
-            model_adl_m1 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m1 forecast
-            model_adl_m4 = model_adl_output.iloc[2]['Nowcasted_GDP']  # m4 forecast
+            model_adl_m1 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m1 forecast
+            model_adl_m4 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m4 forecast
 
-            model_rf_bridge_m1 = model_rf_bridge_output.iloc[1]['Nowcasted_GDP']  # m1 forecast
-            model_rf_bridge_m4 = model_rf_bridge_output.iloc[2]['Nowcasted_GDP']  # m4 forecast 
+            model_rf_bridge_m1 = model_rf_bridge_output.iloc[0]['Nowcasted_GDP']  # m1 forecast
+            model_rf_bridge_m4 = model_rf_bridge_output.iloc[1]['Nowcasted_GDP']  # m4 forecast 
 
             print("m1 revision")
         elif month_of_forecast in [2, 5, 8, 11]:  # February, May, August, November -> m2, m5
-            model_adl_m2 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m2 forecast
-            model_adl_m5 = model_adl_output.iloc[2]['Nowcasted_GDP']  # m5 forecast
+            model_adl_m2 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m2 forecast
+            model_adl_m5 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m5 forecast
 
-            model_rf_bridge_m2 = model_rf_bridge_output.iloc[1]['Nowcasted_GDP']  # m2 forecast
-            model_rf_bridge_m5 = model_rf_bridge_output.iloc[2]['Nowcasted_GDP']  # m5 forecast
+            model_rf_bridge_m2 = model_rf_bridge_output.iloc[0]['Nowcasted_GDP']  # m2 forecast
+            model_rf_bridge_m5 = model_rf_bridge_output.iloc[1]['Nowcasted_GDP']  # m5 forecast
 
             print("m2 revision")
         else:  # March, June, September, December -> m3, m6
-            model_adl_m3 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m3 forecast
-            model_adl_m6 = model_adl_output.iloc[2]['Nowcasted_GDP']  # m6 forecast
+            model_adl_m3 = model_adl_output.iloc[0]['Nowcasted_GDP']  # m3 forecast
+            model_adl_m6 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m6 forecast
         
-            model_rf_bridge_m3 = model_rf_bridge_output.iloc[1]['Nowcasted_GDP']  # m3 forecast
-            model_rf_bridge_m6 = model_rf_bridge_output.iloc[2]['Nowcasted_GDP']  # m6 forecast
+            model_rf_bridge_m3 = model_rf_bridge_output.iloc[0]['Nowcasted_GDP']  # m3 forecast
+            model_rf_bridge_m6 = model_rf_bridge_output.iloc[1]['Nowcasted_GDP']  # m6 forecast
         
             print("m3 revision")
         
@@ -244,14 +244,14 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
         # AR Forecast — only run model_AR on the first month of each quarter
         if month_of_forecast in [1, 4, 7, 10]:
             model_ar_output = model_AR(historical_data)
-            model_ar_h1 = model_ar_output.iloc[1]['Nowcasted_GDP']
-            model_ar_h2 = model_ar_output.iloc[2]['Nowcasted_GDP']
+            model_ar_h1 = model_ar_output.iloc[0]['Nowcasted_GDP']
+            model_ar_h2 = model_ar_output.iloc[1]['Nowcasted_GDP']
 
             # insert forecast from RF BENCHMARK
             #print("df fed into RF model", historical_data_tree.tail(15))
             model_RF_output = model_RF(historical_data_tree)
-            model_RF_h1 = model_RF_output.iloc[1]['Nowcasted_GDP']
-            model_RF_h2 = model_RF_output.iloc[2]['Nowcasted_GDP']
+            model_RF_h1 = model_RF_output.iloc[0]['Nowcasted_GDP']
+            model_RF_h2 = model_RF_output.iloc[1]['Nowcasted_GDP']
 
 
         else:
@@ -390,6 +390,58 @@ def calculate_rmsfe(df):
         result[f'RMSFE_{col}'] = rmsfe
 
     return result
+
+def calculate_rmsfe(df):
+    """
+    Calculates the Root Mean Squared Forecast Error (RMSFE) for each model's forecast.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing 'date', 'actual_gdp', and forecast columns.
+
+    Returns:
+        pd.DataFrame: A one-row DataFrame with RMSFE values for each forecast column.
+    """
+    import numpy as np
+    import pandas as pd
+
+    # Ensure 'date' column is in datetime format
+    df['date'] = pd.to_datetime(df['date'])
+
+    # Create a column to identify the first month of each quarter
+    def get_quarter_start_date(d):
+        if d.month < 4:
+            return pd.Timestamp(f"{d.year}-01-01")
+        elif d.month < 7:
+            return pd.Timestamp(f"{d.year}-04-01")
+        elif d.month < 10:
+            return pd.Timestamp(f"{d.year}-07-01")
+        else:
+            return pd.Timestamp(f"{d.year}-10-01")
+
+    df['quarter_start'] = df['date'].apply(get_quarter_start_date)
+
+    # Group by quarter_start, taking the first non-null value for each column
+    agg_dict = {
+        col: 'first' for col in df.columns
+        if col not in ['date', 'quarter_start']
+    }
+
+    result = df.groupby('quarter_start').agg(agg_dict).reset_index()
+    result = result.rename(columns={'quarter_start': 'date'})
+
+    # Identify forecast columns (excluding 'date' and 'actual_gdp')
+    forecast_cols = [col for col in result.columns if col not in ['date', 'actual_gdp']]
+
+    # Compute RMSFE for each forecast column
+    rmsfe_dict = {}
+    for col in forecast_cols:
+        valid_rows = result[[col, 'actual_gdp']].dropna()
+        error = valid_rows[col] - valid_rows['actual_gdp']
+        rmsfe = np.sqrt((error ** 2).mean())
+        rmsfe_dict[f'RMSFE_{col}'] = rmsfe
+
+    # Convert to single-row DataFrame
+    return pd.DataFrame([rmsfe_dict])
 
 def add_combined_bridge_forecasts(df):
     """
