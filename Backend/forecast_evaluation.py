@@ -340,56 +340,6 @@ def calculate_row_error(df):
 
     return result
 
-def calculate_rmsfe(df):
-    """
-    Calculates the Root Mean Squared Forecast Error (RMSFE) for each model's forecast.
-
-    This function groups the data by the first month of each quarter and computes the RMSFE for each forecast model.
-    The RMSFE is calculated as the square root of the mean squared error between the forecasted values and the actual GDP values.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing the actual GDP values and the forecasted values from various models.
-
-    Returns:
-        pd.DataFrame: A DataFrame containing the RMSFE for each forecast model.
-    """
-    
-    # Ensure date column is in datetime format
-    df['date'] = pd.to_datetime(df['date'])
-
-    # Create a column to identify the first month of each quarter
-    def get_quarter_start_date(d):
-        if d.month < 4:
-            return pd.Timestamp(f"{d.year}-01-01")
-        elif d.month < 7:
-            return pd.Timestamp(f"{d.year}-04-01")
-        elif d.month < 10:
-            return pd.Timestamp(f"{d.year}-07-01")
-        else:
-            return pd.Timestamp(f"{d.year}-10-01")
-
-    df['quarter_start'] = df['date'].apply(get_quarter_start_date)
-
-    # Group by quarter_start, taking the first non-null value for each column
-    agg_dict = {
-        col: 'first' for col in df.columns
-        if col not in ['date', 'quarter_start']
-    }
-
-    result = df.groupby('quarter_start').agg(agg_dict).reset_index()
-    result = result.rename(columns={'quarter_start': 'date'})
-
-    forecast_cols = model_and_horizon
-
-    # Compute RMSFE for each forecast column
-    for col in forecast_cols:
-        # Drop rows where either forecast or actual is NaN
-        valid_rows = result[[col, 'actual_gdp']].dropna()
-        error = valid_rows[col] - valid_rows['actual_gdp']
-        rmsfe = np.sqrt((error ** 2).mean())
-        result[f'RMSFE_{col}'] = rmsfe
-
-    return result
 
 def calculate_rmsfe(df):
     """
@@ -401,8 +351,6 @@ def calculate_rmsfe(df):
     Returns:
         pd.DataFrame: A one-row DataFrame with RMSFE values for each forecast column.
     """
-    import numpy as np
-    import pandas as pd
 
     # Ensure 'date' column is in datetime format
     df['date'] = pd.to_datetime(df['date'])
@@ -461,22 +409,74 @@ def add_combined_bridge_forecasts(df):
     
     return df
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import math
+import textwrap
+
+def plot_residuals(error_df, parts=3, cols_per_row=2):
+    """
+    Splits the residual plots into batches and displays each batch in a clean, readable grid layout.
+
+    Args:
+        error_df (pd.DataFrame): Output from calculate_row_error function with 'Error_' columns.
+        parts (int): Number of plot batches.
+        cols_per_row (int): Number of plots per row.
+    """
+    error_cols = [col for col in error_df.columns if col.startswith("Error_")]
+    chunk_size = math.ceil(len(error_cols) / parts)
+
+    for part in range(parts):
+        chunk = error_cols[part * chunk_size : (part + 1) * chunk_size]
+        num_rows = math.ceil(len(chunk) / cols_per_row)
+
+        fig, axs = plt.subplots(num_rows, cols_per_row,
+                                figsize=(cols_per_row * 6, num_rows * 4),
+                                constrained_layout=True)
+
+        axs = axs.flatten()  # Make it easy to index
+        for ax in axs[len(chunk):]:
+            ax.axis('off')  # Hide unused subplots
+
+        for i, col in enumerate(chunk):
+            sns.histplot(error_df[col].dropna(), kde=True, bins=30, ax=axs[i])
+
+            # Wrap long model names
+            title = col.replace("Error_", "")
+            wrapped_title = "\n".join(textwrap.wrap(title, width=25))
+            axs[i].set_title(wrapped_title, fontsize=11)
+
+            axs[i].set_xlabel("Error", fontsize=10)
+            axs[i].set_ylabel("Frequency", fontsize=10)
+
+        fig.suptitle(f"Residual Distributions (Part {part + 1})", fontsize=16)
+        plt.show()
+
 
 file_path1 = "../Data/bridge_df.csv"
 file_path2 = "../Data/tree_df.csv"
 df = pd.read_csv(file_path1)
 df_nonlinear = pd.read_csv(file_path2)
+
+
+# Test RMSFE generation 
 res = generate_oos_forecast(df, df_nonlinear)
 res = add_combined_bridge_forecasts(res)
-#res_time_travel = generate_oos_forecast(df, df_nonlinear, time_travel_date="2016-03-01", usage="single_period_forecast")
 model_and_horizon += [
     'combined_bridge_forecast_m1', 'combined_bridge_forecast_m2', 'combined_bridge_forecast_m3',
     'combined_bridge_forecast_m4', 'combined_bridge_forecast_m5', 'combined_bridge_forecast_m6'
     ]
 row_error_df = calculate_row_error(res); rmsfe_df = calculate_rmsfe(res)
+#plot_residuals(row_error_df)
 print(res)
-#print(res_time_travel)
 print(row_error_df); print(rmsfe_df)
 
-#res_time_travel.to_csv("../Data/res_time_travel.csv", index=False)
 row_error_df.to_csv("../Data/row_error.csv", index=False); rmsfe_df.to_csv("../Data/rmsfe.csv", index=False)
+
+
+# Test single window forecast
+"""
+res_time_travel = generate_oos_forecast(df, df_nonlinear, time_travel_date="2016-03-01", usage="single_period_forecast")
+print(res_time_travel)
+res_time_travel.to_csv("../Data/res_time_travel.csv", index=False)
+"""
