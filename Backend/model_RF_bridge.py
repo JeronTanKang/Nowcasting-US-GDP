@@ -131,7 +131,7 @@ def model_RF_bridge(df):
         pd.DataFrame: DataFrame with nowcasted GDP growth and GDP values for the forecasted period.
     """
 
-    # ✅ Hardcoded selected features
+    # Hardcoded selected features
     selected_features = [
         'Unemployment', 'junk_bond_spread', 'Trade_Balance', 'Retail_Sales',
         'Capacity_Utilization', 'New_Orders_Durable_Goods', 'Business_Inventories',
@@ -189,7 +189,7 @@ def model_RF_bridge(df):
         nowcast_results["Nowcasted_GDP_Growth"] = predicted_growth
         nowcast_results["Nowcasted_GDP"] = predicted_gdp
     else:
-        print("⚠️ No rows to nowcast.")
+        print(" No rows to nowcast.")
 
     return nowcast_results
 
