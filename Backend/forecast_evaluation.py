@@ -90,7 +90,7 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
     # start index = 0
     # end index = end of forecast,
     if usage == "multi_period_forecast":
-        range_for_start_indices = len(df_trimmed) - window_size #- remove_covid
+        range_for_start_indices = len(df_trimmed) - window_size - remove_covid
     elif usage == "single_period_forecast":
         range_for_start_indices = 6 # only 6 loops for 6 months forecast 
 
@@ -379,7 +379,6 @@ def calculate_rmsfe(df):
     result = df.groupby('quarter_start').agg(agg_dict).reset_index()
     result = result.rename(columns={'quarter_start': 'date'})
 
-    # Columns to calculate RMSFE for
     forecast_cols = model_and_horizon
 
     # Compute RMSFE for each forecast column
@@ -392,13 +391,36 @@ def calculate_rmsfe(df):
 
     return result
 
+def add_combined_bridge_forecasts(df):
+    """
+    Adds combined forecast columns to the DataFrame, averaging ADL bridge and RF bridge forecasts for m1 to m6.
+
+    Args:
+        df (pd.DataFrame): The forecast results DataFrame with ADL and RF bridge model forecasts.
+
+    Returns:
+        pd.DataFrame: The original DataFrame with new combined forecast columns added.
+    """
+    for m in range(1, 7):
+        adl_col = f'model_ADL_bridge_m{m}'
+        rf_col = f'model_RF_bridge_m{m}'
+        combined_col = f'combined_bridge_forecast_m{m}'
+        df[combined_col] = df[[adl_col, rf_col]].mean(axis=1)
+    
+    return df
+
 
 file_path1 = "../Data/bridge_df.csv"
 file_path2 = "../Data/tree_df.csv"
 df = pd.read_csv(file_path1)
 df_nonlinear = pd.read_csv(file_path2)
 res = generate_oos_forecast(df, df_nonlinear)
+res = add_combined_bridge_forecasts(res)
 #res_time_travel = generate_oos_forecast(df, df_nonlinear, time_travel_date="2016-03-01", usage="single_period_forecast")
+model_and_horizon += [
+    'combined_bridge_forecast_m1', 'combined_bridge_forecast_m2', 'combined_bridge_forecast_m3',
+    'combined_bridge_forecast_m4', 'combined_bridge_forecast_m5', 'combined_bridge_forecast_m6'
+    ]
 row_error_df = calculate_row_error(res); rmsfe_df = calculate_rmsfe(res)
 print(res)
 #print(res_time_travel)
