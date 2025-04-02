@@ -6,6 +6,8 @@ The primary functions in this file are:
 2. `calculate_row_error`: This function calculates the row-level forecast error (prediction minus actual) for each model.
 3. `calculate_rmsfe`: This function computes the Root Mean Squared Forecast Error (RMSFE) for each forecast model.
 
+The RMSFE window drops dummy column if covid recession is not in the training window.
+
 It also includes helper functions to handle missing months and preprocess data.
 """
 
@@ -24,15 +26,17 @@ from data_processing import get_missing_months, add_missing_months
 pd.set_option('display.float_format', '{:.2f}'.format)
 
 model_and_horizon =[
-        'model_AR h1', 'model_AR h2',
-        'model_ADL_bridge m1', 'model_ADL_bridge m2', 'model_ADL_bridge m3',
-        'model_ADL_bridge m4', 'model_ADL_bridge m5', 'model_ADL_bridge m6',
-        'model_RF h1', 'model_RF h2',
-        'model_RF_bridge m1', 'model_RF_bridge m2', 'model_RF_bridge m3',
-        'model_RF_bridge m4', 'model_RF_bridge m5', 'model_RF_bridge m6'
+        'model_AR_h1', 'model_AR_h2',
+        'model_ADL_bridge_m1', 'model_ADL_bridge_m2', 'model_ADL_bridge_m3',
+        'model_ADL_bridge_m4', 'model_ADL_bridge_m5', 'model_ADL_bridge_m6',
+        'model_RF_h1', 'model_RF_h2',
+        'model_RF_bridge_m1', 'model_RF_bridge_m2', 'model_RF_bridge_m3',
+        'model_RF_bridge_m4', 'model_RF_bridge_m5', 'model_RF_bridge_m6'
     ]
 
-def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
+
+
+def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_date=None, usage="multi_period_forecast"):
     """
     Generates out-of-sample forecasts using a rolling window approach for multiple models.
 
@@ -43,6 +47,7 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
         df (pd.DataFrame): DataFrame containing the raw data with GDP and other economic indicators.
         df_nonlinear (pd.DataFrame): DataFrame containing additional non-linear data for forecasting.
         window_size (tuple): The rolling window size for training (default is 240 months, equivalent to 20 years).
+        time_travel_date (date object): specify quarter and year Q3 2020 -> 2020-09-01
 
     Returns:
         pd.DataFrame: A DataFrame containing forecasted GDP and growth for each model.
@@ -72,53 +77,56 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
     #print("df_trimmed_tree",df_trimmed_tree)
     
     # Initialize results dataframe
-    results = pd.DataFrame(columns=[
-        'date', 'actual gdp', 
-        'model_AR h1', 'model_AR h2',  # Placeholder for AR model forecasts (to be filled later)
-        'model_ADL_bridge m1', 'model_ADL_bridge m2', 'model_ADL_bridge m3',
-        'model_ADL_bridge m4', 'model_ADL_bridge m5', 'model_ADL_bridge m6',
-        'model_RF h1', 'model_RF h2',
-        'model_RF_bridge m1', 'model_RF_bridge m2', 'model_RF_bridge m3',
-        'model_RF_bridge m4', 'model_RF_bridge m5', 'model_RF_bridge m6'
-    ])
+
+    results = pd.DataFrame(columns=['date', 'actual_gdp'] + model_and_horizon)
 
     #df_sorted = df.sort_values(by='date', ascending=True).reset_index(drop=True)
     
-    # Loop through the trimmed dataframe using a fixed rolling window size
+    # Create window: Loop through the trimmed dataframe using a fixed rolling window size
     remove_covid = 12*5
-    for start_index in range(len(df_trimmed) - window_size - remove_covid):
+
+    #if usage = "multi_period_forecast": for start_index in range(len(df_trimmed) - window_size):
+    #else: for end_index in [end_index, end_index+1]
+    # start index = 0
+    # end index = end of forecast,
+    if usage == "multi_period_forecast":
+        range_for_start_indices = len(df_trimmed) - window_size #- remove_covid
+    elif usage == "single_period_forecast":
+        range_for_start_indices = 6 # only 6 loops for 6 months forecast 
+
+    for start_index in range(range_for_start_indices):
         print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[start_index + window_size - 1]['date'].date())
         
-        # Get the historical data window of size `window_size`
-        end_index = start_index + window_size
+
+        if usage == "multi_period_forecast":
+            end_index = start_index + window_size
+        elif usage == "single_period_forecast":
+            try:
+                end_index = df_trimmed.index[df_trimmed['date'] == time_travel_date][0] - 1 + start_index
+            except IndexError:
+                print(f"Date {time_travel_date} not found in df_trimmed.")
+                end_index = None
+        
         historical_data = df_trimmed.iloc[start_index:end_index]
         historical_data_tree = df_trimmed_tree.iloc[start_index:end_index]
 
-        #drop dummy variable if the window does not contain covid recession period
+        # drop dummy variable if the window does not contain covid recession period
         if 1 not in historical_data['dummy'].values:
             historical_data = historical_data.drop(columns=['dummy'])
-            print('dropped dummy')
+            #print('dropped dummy')
 
         if 1 not in historical_data_tree['dummy'].values:
             historical_data_tree = historical_data_tree.drop(columns=['dummy'])
-            print('dropped dummy for tree')
+            #print('dropped dummy for tree')
 
         historical_data = historical_data.sort_values(by='date', ascending=False).reset_index(drop=True)
         historical_data_tree = historical_data_tree.sort_values(by='date', ascending=False).reset_index(drop=True)
 
-        #print("before bfill", historical_data.head(10))
-        #print("before shift up", historical_data.head(10))
-
-        # bfill gdp here
-        #historical_data['GDP'] = historical_data['GDP'].fillna(method='bfill')
-        #historical_data['GDP'] = historical_data['GDP'].shift(-1)
-
-        #print("after shift up", historical_data.head(10))
-
+        # adds 3 months above to add an additional quarter to forecast
         historical_data = add_missing_months(historical_data, date_column="date")
         historical_data_tree = add_missing_months(historical_data_tree, date_column="date")
 
-        # Recompute gdp_growth_lag2 from gdp_growth
+        # Recompute gdp_growth_lag2 from gdp_growth. will need to do this for lag 1 too
         if 'gdp_growth' in historical_data.columns:
             historical_data['gdp_growth_lag2'] = historical_data['gdp_growth'].shift(6)
 
@@ -129,32 +137,17 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
             if last_valid_idx is not None:
                 historical_data.loc[last_valid_idx, 'gdp_growth_lag2'] = pd.NA
 
-
-
-        #print("historical_data", historical_data.tail(15))
-
         
-        # Get actual GDP value for the current period (the next row outside the window)
-        #actual_gdp = df_trimmed.iloc[end_index]['GDP']  # The next row after the window  # this will no longer be the actual gdp. actual gdp will now be for the quarter that the last month in the window belongs to
+        forecast_date = df_trimmed.iloc[end_index-1]['date']
 
-        date = df_trimmed.iloc[end_index-1]['date']
+        print("forecasting this date revision", forecast_date)
 
-        print("forecasting this date revision", date)
-        
-        # Adjust the date to the first month of the quarter
-        if date.month < 4:  # January, February, March
-            adjusted_date = pd.to_datetime(f'{date.year}-01-01')
-        elif date.month < 7:  # April, May, June
-            adjusted_date = pd.to_datetime(f'{date.year}-04-01')
-        elif date.month < 10:  # July, August, September
-            adjusted_date = pd.to_datetime(f'{date.year}-07-01')
-        else:  # October, November, December
-            adjusted_date = pd.to_datetime(f'{date.year}-10-01')
-
-        # Forecast using model_ADL_bridge (for the rolling window)
 
         # remove last available GDP THIS STEP IS VERY IMPORTANT AND HAS TO BE DONE BEFORE DATA IS FED INTO MODEL TO PREVENT LEAKAGE 
         # in that case I need to remove gdp_growth too becos this is what im predicting
+
+        # in adition if any of the forecast periods are labelled dummy = 1, drop dummy col
+        # intuition: dummy variable only exists to dampen the covid quarters when model fitting
 
         ## Store and remove last and second last non-NaN GDP values
         gdp_valid_indices = historical_data['GDP'].dropna().index
@@ -166,53 +159,61 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
             second_last_gdp = historical_data.at[gdp_valid_indices[-2], 'GDP']
             historical_data.at[gdp_valid_indices[-2], 'GDP'] = float('nan')
 
+        if "dummy" in historical_data.columns:
+            if (historical_data.tail(9)['dummy'] == 1).any(): # check last 9 rows since this is the last 3 quarters that will be forecast
+                historical_data = historical_data.drop(columns=['dummy']) # drop or fill with 0? which is btr
+                #print("Dropped dummy from forecast quarter")
+
         #repeat above for tree
         gdp_valid_indices_tree = historical_data_tree['GDP'].dropna().index
         last_gdp_tree = second_last_gdp_tree = None
         if len(gdp_valid_indices_tree) >= 1:
-            last_gdp_tree = historical_data_tree.at[gdp_valid_indices_tree[-1], 'GDP']
+            #last_gdp_tree = historical_data_tree.at[gdp_valid_indices_tree[-1], 'GDP']
             historical_data_tree.at[gdp_valid_indices_tree[-1], 'GDP'] = float('nan')
         if len(gdp_valid_indices_tree) >= 2:
-            second_last_gdp_tree = historical_data_tree.at[gdp_valid_indices_tree[-2], 'GDP']
+            #second_last_gdp_tree = historical_data_tree.at[gdp_valid_indices_tree[-2], 'GDP']
             historical_data_tree.at[gdp_valid_indices_tree[-2], 'GDP'] = float('nan')
+
+        if "dummy" in historical_data_tree.columns:
+            if (historical_data_tree.tail(9)['dummy'] == 1).any(): # check last 9 rows since this is the last 3 quarters that will be forecast
+                historical_data_tree = historical_data_tree.drop(columns=['dummy']) # drop or fill with 0? which is btr
+                #print("Dropped dummy tree from forecast quarter")
 
         actual_gdp = last_gdp
 
+        # commenting out below becos i think i can remove it. i dont think i need to store this value i dont need to use it in the future
         ## Store and remove last and second last non-NaN GDP_Growth values
         gdp_growth_valid_indices = historical_data['gdp_growth'].dropna().index
         last_gdp_growth = second_last_gdp_growth = None
         if len(gdp_growth_valid_indices) >= 1:
-            last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-1], 'gdp_growth']
+            #last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-1], 'gdp_growth']
             historical_data.at[gdp_growth_valid_indices[-1], 'gdp_growth'] = float('nan')
         if len(gdp_growth_valid_indices) >= 2:
-            second_last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth']
+            #second_last_gdp_growth = historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth']
             historical_data.at[gdp_growth_valid_indices[-2], 'gdp_growth'] = float('nan')
 
         #repeat above for tree
         gdp_growth_valid_indices_tree = historical_data_tree['gdp_growth'].dropna().index
         last_gdp_growth_tree = second_last_gdp_growth_tree = None
         if len(gdp_growth_valid_indices_tree) >= 1:
-            last_gdp_growth = historical_data_tree.at[gdp_growth_valid_indices_tree[-1], 'gdp_growth']
+            #last_gdp_growth = historical_data_tree.at[gdp_growth_valid_indices_tree[-1], 'gdp_growth']
             historical_data_tree.at[gdp_growth_valid_indices_tree[-1], 'gdp_growth'] = float('nan')
         if len(gdp_growth_valid_indices_tree) >= 2:
-            second_last_gdp_growth = historical_data_tree.at[gdp_growth_valid_indices_tree[-2], 'gdp_growth']
+            #second_last_gdp_growth = historical_data_tree.at[gdp_growth_valid_indices_tree[-2], 'gdp_growth']
             historical_data_tree.at[gdp_growth_valid_indices_tree[-2], 'gdp_growth'] = float('nan')
 
         #print("prediction df", historical_data.tail(13))
 
         #### FORECAST FROM  ADL BRIDGE ####
-
         model_adl_output = model_ADL_bridge(historical_data)  # Get the model output DataFrame
         #print("model_adl_output", model_adl_output)
 
         #### FORECAST FROM RF BRIDGE ####
         model_rf_bridge_output = model_RF_bridge(historical_data_tree)  # Get the model output DataFrame
         #print("model_adl_output", model_adl_output)
-
-
         
         # Determine the forecast horizon (using a heuristic based on the month)
-        month_of_forecast = date.month  # This will help decide which forecast to use
+        month_of_forecast = forecast_date.month  # This will help decide which forecast to use
 
         if month_of_forecast in [1, 4, 7, 10]:  # January, April, July, October -> m1, m4
             model_adl_m1 = model_adl_output.iloc[1]['Nowcasted_GDP']  # m1 forecast
@@ -261,37 +262,37 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20)):
 
         
         results = pd.concat([results, pd.DataFrame({
-            'date': [date],  
-            'actual gdp': [actual_gdp],
-            'model_AR h1': [model_ar_h1],
-            'model_AR h2': [model_ar_h2],
-            'model_ADL_bridge m1': [model_adl_m1 if month_of_forecast in [1, 4, 7, 10] else None],
-            'model_ADL_bridge m2': [model_adl_m2 if month_of_forecast in [2, 5, 8, 11] else None],
-            'model_ADL_bridge m3': [model_adl_m3 if month_of_forecast in [3, 6, 9, 12] else None],
-            'model_ADL_bridge m4': [model_adl_m4 if month_of_forecast in [1, 4, 7, 10] else None],
-            'model_ADL_bridge m5': [model_adl_m5 if month_of_forecast in [2, 5, 8, 11] else None],
-            'model_ADL_bridge m6': [model_adl_m6 if month_of_forecast in [3, 6, 9, 12] else None],
-            'model_RF h1': [model_RF_h1],
-            'model_RF h2': [model_RF_h2],
-            'model_RF_bridge m1': [model_rf_bridge_m1 if month_of_forecast in [1, 4, 7, 10] else None],
-            'model_RF_bridge m2': [model_rf_bridge_m2 if month_of_forecast in [2, 5, 8, 11] else None],
-            'model_RF_bridge m3': [model_rf_bridge_m3 if month_of_forecast in [3, 6, 9, 12] else None],
-            'model_RF_bridge m4': [model_rf_bridge_m4 if month_of_forecast in [1, 4, 7, 10] else None],
-            'model_RF_bridge m5': [model_rf_bridge_m5 if month_of_forecast in [2, 5, 8, 11] else None],
-            'model_RF_bridge m6': [model_rf_bridge_m6 if month_of_forecast in [3, 6, 9, 12] else None],
+            'date': [forecast_date],  
+            'actual_gdp': [actual_gdp],
+            'model_AR_h1': [model_ar_h1],
+            'model_AR_h2': [model_ar_h2],
+            'model_ADL_bridge_m1': [model_adl_m1 if month_of_forecast in [1, 4, 7, 10] else None],
+            'model_ADL_bridge_m2': [model_adl_m2 if month_of_forecast in [2, 5, 8, 11] else None],
+            'model_ADL_bridge_m3': [model_adl_m3 if month_of_forecast in [3, 6, 9, 12] else None],
+            'model_ADL_bridge_m4': [model_adl_m4 if month_of_forecast in [1, 4, 7, 10] else None],
+            'model_ADL_bridge_m5': [model_adl_m5 if month_of_forecast in [2, 5, 8, 11] else None],
+            'model_ADL_bridge_m6': [model_adl_m6 if month_of_forecast in [3, 6, 9, 12] else None],
+            'model_RF_h1': [model_RF_h1],
+            'model_RF_h2': [model_RF_h2],
+            'model_RF_bridge_m1': [model_rf_bridge_m1 if month_of_forecast in [1, 4, 7, 10] else None],
+            'model_RF_bridge_m2': [model_rf_bridge_m2 if month_of_forecast in [2, 5, 8, 11] else None],
+            'model_RF_bridge_m3': [model_rf_bridge_m3 if month_of_forecast in [3, 6, 9, 12] else None],
+            'model_RF_bridge_m4': [model_rf_bridge_m4 if month_of_forecast in [1, 4, 7, 10] else None],
+            'model_RF_bridge_m5': [model_rf_bridge_m5 if month_of_forecast in [2, 5, 8, 11] else None],
+            'model_RF_bridge_m6': [model_rf_bridge_m6 if month_of_forecast in [3, 6, 9, 12] else None],
         })], ignore_index=True)
 
-    results['model_ADL_bridge m4'] = results['model_ADL_bridge m4'].shift(3)
-    results['model_ADL_bridge m5'] = results['model_ADL_bridge m5'].shift(3)
-    results['model_ADL_bridge m6'] = results['model_ADL_bridge m6'].shift(3)
+    results['model_ADL_bridge_m4'] = results['model_ADL_bridge_m4'].shift(3)
+    results['model_ADL_bridge_m5'] = results['model_ADL_bridge_m5'].shift(3)
+    results['model_ADL_bridge_m6'] = results['model_ADL_bridge_m6'].shift(3)
 
-    results['model_AR h2'] = results['model_AR h2'].shift(3)
+    results['model_AR_h2'] = results['model_AR_h2'].shift(3)
 
-    results['model_RF h2'] = results['model_RF h2'].shift(3)
+    results['model_RF_h2'] = results['model_RF_h2'].shift(3)
 
-    results['model_RF_bridge m4'] = results['model_RF_bridge m4'].shift(3)
-    results['model_RF_bridge m5'] = results['model_RF_bridge m5'].shift(3)
-    results['model_RF_bridge m6'] = results['model_RF_bridge m6'].shift(3)
+    results['model_RF_bridge_m4'] = results['model_RF_bridge_m4'].shift(3)
+    results['model_RF_bridge_m5'] = results['model_RF_bridge_m5'].shift(3)
+    results['model_RF_bridge_m6'] = results['model_RF_bridge_m6'].shift(3)
     
     return results
 
@@ -335,7 +336,7 @@ def calculate_row_error(df):
 
     # Calculate row-by-row forecast errors (prediction - actual)
     for col in forecast_cols:
-        result[f'Error_{col}'] = result[col] - result['actual gdp']
+        result[f'Error_{col}'] = result[col] - result['actual_gdp']
 
     return result
 
@@ -384,8 +385,8 @@ def calculate_rmsfe(df):
     # Compute RMSFE for each forecast column
     for col in forecast_cols:
         # Drop rows where either forecast or actual is NaN
-        valid_rows = result[[col, 'actual gdp']].dropna()
-        error = valid_rows[col] - valid_rows['actual gdp']
+        valid_rows = result[[col, 'actual_gdp']].dropna()
+        error = valid_rows[col] - valid_rows['actual_gdp']
         rmsfe = np.sqrt((error ** 2).mean())
         result[f'RMSFE_{col}'] = rmsfe
 
@@ -397,11 +398,11 @@ file_path2 = "../Data/tree_df.csv"
 df = pd.read_csv(file_path1)
 df_nonlinear = pd.read_csv(file_path2)
 res = generate_oos_forecast(df, df_nonlinear)
-row_error_df = calculate_row_error(res)
-rmsfe_df = calculate_rmsfe(res)
+#res_time_travel = generate_oos_forecast(df, df_nonlinear, time_travel_date="2016-03-01", usage="single_period_forecast")
+row_error_df = calculate_row_error(res); rmsfe_df = calculate_rmsfe(res)
 print(res)
-print(row_error_df)
-print(rmsfe_df)
+#print(res_time_travel)
+print(row_error_df); print(rmsfe_df)
 
-row_error_df.to_csv("../Data/row_error.csv", index=False)
-rmsfe_df.to_csv("../Data/rmsfe.csv", index=False)
+#res_time_travel.to_csv("../Data/res_time_travel.csv", index=False)
+row_error_df.to_csv("../Data/row_error.csv", index=False); rmsfe_df.to_csv("../Data/rmsfe.csv", index=False)
