@@ -164,7 +164,6 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
         gdp_valid_indices_tree = historical_data_tree['GDP'].dropna().index
         last_gdp_tree = second_last_gdp_tree = None
         if len(gdp_valid_indices_tree) >= 1:
-            #last_gdp_tree = historical_data_tree.at[gdp_valid_indices_tree[-1], 'GDP']
             historical_data_tree.at[gdp_valid_indices_tree[-1], 'GDP'] = float('nan')
             # if dummy is 1, set to 0
             if 'dummy' in historical_data_tree.columns:
@@ -172,7 +171,7 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
                     historical_data_tree.at[gdp_valid_indices_tree[-1], 'dummy'] = 0
 
 
-        actual_gdp = last_gdp
+        actual_gdp = last_gdp # want to change this to gdp growth instead
 
         # commenting out below becos i think i can remove it. i dont think i need to store this value i dont need to use it in the future
         ## Store and remove last and second last non-NaN GDP_Growth values
@@ -189,7 +188,6 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
             #last_gdp_growth = historical_data_tree.at[gdp_growth_valid_indices_tree[-1], 'gdp_growth']
             historical_data_tree.at[gdp_growth_valid_indices_tree[-1], 'gdp_growth'] = float('nan')
 
-        #print("prediction df", historical_data.tail(13))
 
         #### FORECAST FROM  ADL BRIDGE ####
         model_adl_output = model_ADL_bridge(historical_data)  # Get the model output DataFrame
@@ -441,18 +439,21 @@ def plot_residuals(error_df, parts=3, cols_per_row=2):
 
 def drop_covid(df):
     """
-    Drops rows where the year in the 'date' column is 2020,
-    and also removes the specific date 2021-01-01.
-
-    Args:
-        df (pd.DataFrame): DataFrame with a 'date' column.
-
-    Returns:
-        pd.DataFrame: Filtered DataFrame with 2020 and 2021-01-01 removed.
+    Drops rows where the year is 2020 or the exact date is 2021-01-01.
     """
-    df['date'] = pd.to_datetime(df['date'])  
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')  # make sure it's datetime
+    return df[
+        (df['date'].dt.year != 2020) & 
+        (df['date'].dt.date != pd.Timestamp("2021-01-01").date())
+    ]
 
-    return df[(df['date'].dt.year != 2020) & (df['date'] != pd.Timestamp("2021-01-01"))] # fix this its not dropping the whole row
+def drop_covid(df):
+    """
+    Drops rows where the year is 2020 or the date is in January 2021.
+    """
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')  # Ensure datetime format
+
+    return df[(df['date'].dt.year != 2020) & (df['date'] != pd.Timestamp("2021-01-01"))] 
 
 file_path1 = "../Data/bridge_df.csv"
 file_path2 = "../Data/tree_df.csv"
@@ -467,13 +468,22 @@ model_and_horizon += [
     'combined_bridge_forecast_m1', 'combined_bridge_forecast_m2', 'combined_bridge_forecast_m3',
     'combined_bridge_forecast_m4', 'combined_bridge_forecast_m5', 'combined_bridge_forecast_m6'
     ]
-res_drop_covid = drop_covid(res)
-row_error_df = calculate_row_error(res_drop_covid); rmsfe_df = calculate_rmsfe(res_drop_covid)
+
+row_error_df = calculate_row_error(res)
+
+row_error_df_dropped_covid = drop_covid(row_error_df)
+
+res_dropped_covid = drop_covid(res)
+
+rmsfe_df = calculate_rmsfe(res)
+rmsfe_df_dropped_covid = calculate_rmsfe(res_dropped_covid)
+
 #plot_residuals(row_error_df)
-print(res_drop_covid)
+#print(res_drop_covid)
 print(row_error_df); print(rmsfe_df)
 
-row_error_df.to_csv("../Data/row_error.csv", index=False); rmsfe_df.to_csv("../Data/rmsfe.csv", index=False)
+row_error_df_dropped_covid.to_csv("../Data/row_error.csv", index=False); rmsfe_df.to_csv("../Data/rmsfe.csv", index=False)
+rmsfe_df_dropped_covid.to_csv("../Data/rmsfe_dropped_covid.csv", index=False)
 
 
 # Test single window forecast
