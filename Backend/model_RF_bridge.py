@@ -193,4 +193,5 @@ def model_RF_bridge(df):
 
     return nowcast_results
 
-print(model_RF_bridge(df))
+if __name__ == "__main__":
+    print(model_RF_bridge(df))
