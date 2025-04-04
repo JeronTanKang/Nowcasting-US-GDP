@@ -72,6 +72,7 @@ final_data <- final_data %>% mutate(date = as.Date(paste0(date, "-01"))) %>%
   ) %>% mutate(junk_bond_spread = BAA - AAA) %>% select(-AAA) %>% select(-BAA) %>%
   arrange(desc(date))
 
+
 #function to determine how many extra rows
 get_missing_months <- function(df, date_column = "date") {
   # Ensure the date column is in Date format
@@ -81,9 +82,9 @@ get_missing_months <- function(df, date_column = "date") {
   # Get the latest date in the dataset
   latest_date <- max(df[[date_column]], na.rm = TRUE)
   
-  # Get the current date and find the end of the quarter 2 quarters from now
-  current_date <- floor_date(latest_date, unit = "month")  # First day of current month
-  target_date <- ceiling_date(current_date %m+% months(6), unit = "quarter") - days(1)  # End of 2 quarters from now
+  # Use current date (not latest_date) to define the target range
+  current_date <- floor_date(Sys.Date(), unit = "month")
+  target_date <- ceiling_date(current_date %m+% months(6), unit = "quarter") - days(1)
   
   # Calculate number of months missing
   num_missing_months <- interval(latest_date, target_date) %/% months(1)
