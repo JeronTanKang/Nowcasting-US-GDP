@@ -1,11 +1,11 @@
 """
-This file contains the `model_RF` function, which generates GDP forecasts using Random Forest models for multiple forecast horizons (1-step, 2-step, and 3-step forecasts). 
+This file contains the `model_RF` function, which generates GDP forecasts using Random Forest models for multiple forecast horizons (1-step, 2-step forecasts). 
 It leverages macroeconomic indicators and their lagged values to predict future GDP growth, and then uses the forecasted GDP growth to calculate the nowcasted GDP levels for the next periods.
 
 The process includes:
 1. Aggregating macroeconomic data to quarterly frequency.
 2. Creating lagged features for the indicators.
-3. Training three Random Forest models for 1-step, 2-step, and 3-step forecasts.
+3. Training three Random Forest models for 1-step, 2-step forecasts.
 4. Using the trained models to predict GDP growth and convert it to GDP levels.
 5. Returning a DataFrame with the forecasted GDP growth and nowcasted GDP for the forecasted periods.
 
@@ -14,9 +14,9 @@ Functions:
 """
 
 import pandas as pd
-import pandas as pd
 import numpy as np
 from datetime import datetime
+from pandas.tseries.offsets import QuarterBegin
 import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -65,18 +65,24 @@ def model_RF(df):
 
     #Aggregate Data
     df_aggregated = aggregate_indicators(df) #gdp_growth is excluded
+    df_aggregated.drop(df_aggregated.index[-1], inplace = True) #drop latest quarter in df (we only want to nowcast this quarter and next)
+
     exclude_columns = ["date", "GDP", "dummy"] #df to exclude later when laggin indicators
 
     #create a df to store nowcasted values
-    df_to_pred = df_aggregated[df_aggregated["GDP"].isnull() & (df_aggregated.index >= df_aggregated.index[-4])]
+    df_to_pred = df_aggregated.tail(2)
     df_to_pred = df_to_pred[["date", "gdp_growth", "GDP"]]
-
+ 
     #lag variables
     df_lagged = create_lag_features(df_aggregated, exclude_columns, 6) # 6 lags of each indicator 
 
-    #drop contemporary indicators and gdp_growth_lag1
-    df_lagged = df_lagged.drop(columns=contemp_indicators + ["gdp_growth_lag1"])
-    df_lagged = df_lagged.dropna(subset=["GDP"])
+    #drop contemporary indicators and all lag1
+    df_lagged = df_lagged.drop(columns=contemp_indicators)
+    df_lagged = df_lagged.drop(columns=df_lagged.filter(regex='_lag1$').columns) 
+
+    #drop rows with no gdp val
+    df_lagged = df_lagged.dropna(subset=["GDP"]) 
+
     #drop lags of each indicator depending on how many steps model is predicting
     def prepare_model_data(df, drop_lags, drop_growth_lag):
         df_model = df.drop(columns=[col for col in df.columns if any(col.endswith(f'_lag{i}') for i in drop_lags)])
@@ -89,7 +95,7 @@ def model_RF(df):
         #Drop 'Date' before defining X
         X = df_model.drop(columns=["gdp_growth", "GDP", "date"])
         y = df_model['gdp_growth']
-        return train_test_split(X, y, test_size=0.2, shuffle=False)
+        return X, y
 
     #recession dates
     recession_dates = pd.to_datetime([
@@ -97,20 +103,17 @@ def model_RF(df):
         "2020-07-01", "2020-08-01", "2020-09-01"
     ])
 
-    #Model 1 (1 step forecast, so take lag1 to lag 4)
-    X_train_1, X_test_1, Y_train_1, Y_test_1 = prepare_model_data(df_lagged, [5, 6], None)
-    rf_model_1 = RandomForestRegressor(random_state=42).fit(X_train_1, Y_train_1)
+    #Model 1 (1 step forecast, so take lag2 to lag 5)
+    X_1, y_1 = prepare_model_data(df_lagged, [6], None)
+    rf_model_1 = RandomForestRegressor(random_state=42).fit(X_1, y_1)
 
-    ##Model 2 (2 step forecast, so take lag2 to lag5)
-    X_train_2, X_test_2, Y_train_2, Y_test_2 = prepare_model_data(df_lagged, [1, 6], ["gdp_growth_lag2"])
-    rf_model_2 = RandomForestRegressor(random_state=42).fit(X_train_2, Y_train_2)
+    ##Model 2 (2 step forecast, so take lag3 to lag6)
+    X_2, Y_2 = prepare_model_data(df_lagged, [2], None)
+    rf_model_2 = RandomForestRegressor(random_state=42).fit(X_2, Y_2)
     
-    ##Model 3 (3 step forecast, so take lag3 to lag6)
-    X_train_3, X_test_3, Y_train_3, Y_test_3 = prepare_model_data(df_lagged, [1, 2], ["gdp_growth_lag3"])
-    rf_model_3 = RandomForestRegressor(random_state=42).fit(X_train_3, Y_train_3)
-
     #filter out latest row with available data
     df_latest_date = df_lagged.loc[df_lagged['date'].idxmax():]
+
     df_latest_indicators = df_latest_date.drop(columns=["date", "GDP", "gdp_growth"])
 
     #ensure that df_pred is sorted in ascending order
@@ -124,20 +127,13 @@ def model_RF(df):
         GDP = row['GDP']
         if index == 0:
             #use model 1
-            df_indicators = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [5, 6])])
+            df_indicators = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1, 6])])
             gdp_growth = rf_model_1.predict(df_indicators)
 
         elif index == 1:
             #use model 2
-            df_indicators = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1, 6])])
-            df_indicators = df_indicators.drop(columns=["gdp_growth_lag2"])
-            gdp_growth = rf_model_2.predict(df_indicators)
-
-        elif index == 2:
-            #use model 3
             df_indicators = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1, 2])])
-            df_indicators = df_indicators.drop(columns=["gdp_growth_lag3"])
-            gdp_growth = rf_model_3.predict(df_indicators)
+            gdp_growth = rf_model_2.predict(df_indicators)
 
         df_to_pred.at[index, 'gdp_growth'] = gdp_growth
 
@@ -152,7 +148,7 @@ def model_RF(df):
 
     df_to_pred.drop(columns=["GDP"], inplace=True)
     df_to_pred.rename(columns={"gdp_growth": "Nowcasted_GDP_Growth"}, inplace=True)
-    df_to_pred = df_to_pred.head(3)
+
 
     return df_to_pred
 
@@ -161,9 +157,6 @@ if __name__ == "__main__":
 
     df = pd.read_csv(file_path)
     print(model_RF(df))
-
-
-
 
 """import pandas as pd
 import numpy as np
