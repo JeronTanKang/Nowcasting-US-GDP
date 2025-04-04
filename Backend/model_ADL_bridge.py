@@ -112,11 +112,9 @@ def model_ADL_bridge(df):
     #print("PPPPPPEEEEEEEEKKKKK",train_ols)
 
     ##########################
-    drop_variables = ["GDP","gdp_growth",
+    drop_variables = ["GDP","gdp_growth","gdp_growth_lag2", "gdp_growth_lag3", "gdp_growth_lag4",
+                      
                     #"gdp_growth_lag1",
-                    "gdp_growth_lag2", 
-                    "gdp_growth_lag3", 
-                    "gdp_growth_lag4",
                     #"junk_bond_spread",
                     #"junk_bond_spread_lag1",
                     "junk_bond_spread_lag2",
