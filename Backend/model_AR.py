@@ -80,7 +80,7 @@ def model_AR(df):
     forecast_df["Nowcasted_GDP"] = gdp_forecast
 
     forecast_df = forecast_df.reset_index(drop=True)
-    print(forecast_df[["date", "Nowcasted_GDP_Growth", "Nowcasted_GDP"]])
+    #print(forecast_df[["date", "Nowcasted_GDP_Growth", "Nowcasted_GDP"]])
 
     return forecast_df[["date", "Nowcasted_GDP_Growth", "Nowcasted_GDP"]]
 
