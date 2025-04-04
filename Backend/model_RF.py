@@ -251,4 +251,4 @@ df_model3 = df_lagged.drop(columns=[col for col in df_lagged.columns if any(col.
 df_model3 = df_model3.drop(columns = "gdp_growth_lag3")
 
 #Sort date again 
-df_model3 = df_model3.sort_values(by='date', ascending= True)
+df_model3 = df_model3.sort_values(by='date', ascending= True)"""
