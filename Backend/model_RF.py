@@ -151,10 +151,17 @@ def model_RF(df):
         df_to_pred.at[i, "Nowcasted_GDP"] = df_to_pred.at[i - 1, "Nowcasted_GDP"] * np.exp(df_to_pred.at[i, "gdp_growth"] / 400)
 
     df_to_pred.drop(columns=["GDP"], inplace=True)
-    df_to_pred.rename(columns={"gdp_growth": "gdp_growth_forecast"}, inplace=True)
+    df_to_pred.rename(columns={"gdp_growth": "Nowcasted_GDP_Growth"}, inplace=True)
     df_to_pred = df_to_pred.head(3)
 
     return df_to_pred
+
+if __name__ == "__main__":
+    file_path = "../Data/tree_df.csv"
+
+    df = pd.read_csv(file_path)
+    print(model_RF(df))
+
 
 
 
