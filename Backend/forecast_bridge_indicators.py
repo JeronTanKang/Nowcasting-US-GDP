@@ -60,7 +60,7 @@ def record_months_to_forecast(df, predictors):
 
     return months_to_forecast
 
-def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag2","gdp_growth_lag3","gdp_growth_lag4"]):
+def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag1","gdp_growth_lag2","gdp_growth_lag3","gdp_growth_lag4"]):
     """
     Forecasts missing values for predictor variables using AutoRegressive models.
 
