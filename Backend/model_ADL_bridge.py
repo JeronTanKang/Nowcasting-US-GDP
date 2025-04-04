@@ -113,7 +113,8 @@ def model_ADL_bridge(df):
 
     ##########################
     drop_variables = ["GDP","gdp_growth",
-                    #"gdp_growth_lag2", 
+                    #"gdp_growth_lag1",
+                    "gdp_growth_lag2", 
                     "gdp_growth_lag3", 
                     "gdp_growth_lag4",
                     #"junk_bond_spread",
@@ -143,7 +144,7 @@ def model_ADL_bridge(df):
     #monthly_indicators_forecasted.index = pd.to_datetime(monthly_indicators_forecasted.index)
     quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) # aggregate to quartlerly
 
-    #print("quarterly_indicators_forecasted",quarterly_indicators_forecasted[['date','Trade_Balance_lag1']])
+    #print("quarterly_indicators_forecasted",quarterly_indicators_forecasted.tail(10))
 
     drop_variables.append("date")
     predictors = quarterly_indicators_forecasted.drop(columns=drop_variables, errors='ignore')
@@ -169,14 +170,13 @@ def model_ADL_bridge(df):
     # Initialize the last known GDP
     last_actual_gdp = train_ols["GDP"].dropna().iloc[-1]  # Last known actual GDP
 
-    # Initialize a dictionary to store predicted growth values (gdp_growth_lag2)
+    # Initialize a dictionary to store predicted growth values (gdp_growth_lag1 and lag2)
     last_actual_growth = quarterly_indicators_forecasted["gdp_growth"][
     (quarterly_indicators_forecasted["gdp_growth"].notna()) & 
     (quarterly_indicators_forecasted["gdp_growth"] != 0)].iloc[-1]
 
     predicted_growth_dict = {0: last_actual_growth}
     
-    #predicted_growth_dict = {}
 
     predictors_to_forecast = predictors_to_forecast.reset_index(drop=True)
         
@@ -186,9 +186,11 @@ def model_ADL_bridge(df):
     for idx, row in predictors_to_forecast.iterrows():
         adjusted_idx = idx + 1 
 
-        # Step 1: Update the current row's gdp_growth_lag2 with the predicted value from the dictionary
-        if pd.isna(row["gdp_growth_lag2"]) or row["gdp_growth_lag2"] == 0:
-            row["gdp_growth_lag2"] = predicted_growth_dict.get(adjusted_idx - 2, last_actual_growth)
+        # Step 1: Update the current row's gdp_growth_lag1 and lag2 with the predicted value from the dictionary
+        if pd.isna(row["gdp_growth_lag1"]) or row["gdp_growth_lag1"] == 0:
+            row["gdp_growth_lag1"] = predicted_growth_dict.get(adjusted_idx - 1, last_actual_growth)
+        #if pd.isna(row["gdp_growth_lag2"]) or row["gdp_growth_lag2"] == 0:
+        #    row["gdp_growth_lag2"] = predicted_growth_dict.get(adjusted_idx - 2, last_actual_growth)
 
         #print("prediction is made on this row \n",row)
         # Step 2: Predict GDP growth for the current row
@@ -203,7 +205,7 @@ def model_ADL_bridge(df):
         # Step 4: Update the last known GDP for the next iteration
         last_actual_gdp = next_gdp  # Update for next forecast
 
-        # Step 5: Store the predicted growth (gdp_growth_lag2) in the dictionary for the next row
+        # Step 5: Store the predicted growth in the dictionary for the next row
         predicted_growth_dict[adjusted_idx] = predicted_growth
 
         #print("iterated updating",predicted_growth_dict)
