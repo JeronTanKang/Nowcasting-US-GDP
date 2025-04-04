@@ -1,7 +1,4 @@
 "date","GDP","gdp_growth","gdp_growth_lag1","gdp_growth_lag2","gdp_growth_lag3","gdp_growth_lag4","Nonfarm_Payrolls","Construction_Spending","Trade_Balance","Trade_Balance_lag1","Industrial_Production_lag1","Industrial_Production_lag3","Housing_Starts","Capacity_Utilization","New_Orders_Durable_Goods","Interest_Rate_lag1","Unemployment","junk_bond_spread","junk_bond_spread_lag1","junk_bond_spread_lag2","junk_bond_spread_lag3","junk_bond_spread_lag4","yield_spread","yield_spread_lag1","yield_spread_lag2","yield_spread_lag3","yield_spread_lag4","dummy"
-2025-12-01,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,0
-2025-11-01,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,0
-2025-10-01,NA,NA,NA,NA,NA,2.42091922478735,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,0
 2025-09-01,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,0
 2025-08-01,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,0
 2025-07-01,NA,NA,NA,NA,2.42091922478735,3.02656288407448,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,0.64,NA,NA,NA,NA,-0.06,0
