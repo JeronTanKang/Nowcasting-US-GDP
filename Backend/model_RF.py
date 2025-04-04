@@ -5,7 +5,7 @@ It leverages macroeconomic indicators and their lagged values to predict future 
 The process includes:
 1. Aggregating macroeconomic data to quarterly frequency.
 2. Creating lagged features for the indicators.
-3. Training three Random Forest models for 1-step, 2-step forecasts.
+3. Training two Random Forest models for 1-step, 2-step forecasts.
 4. Using the trained models to predict GDP growth and convert it to GDP levels.
 5. Returning a DataFrame with the forecasted GDP growth and nowcasted GDP for the forecasted periods.
 
@@ -28,8 +28,6 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from data_processing import aggregate_indicators, create_lag_features
 from model_ADL_bridge import forecast_indicators, record_months_to_forecast #AR(p) model 
-file_path = "../Data/tree_df.csv"
-df = pd.read_csv(file_path)
 
 
 def model_RF(df):
@@ -64,21 +62,23 @@ def model_RF(df):
     df = df.sort_values(by='date', ascending=True)
 
     #Aggregate Data
-    df_aggregated = aggregate_indicators(df) #gdp_growth is excluded
-    df_aggregated.drop(df_aggregated.index[-1], inplace = True) #drop latest quarter in df (we only want to nowcast this quarter and next)
+    df_aggregated = aggregate_indicators(df) #gdp_growth is not aggregated 
 
-    exclude_columns = ["date", "GDP", "dummy"] #df to exclude later when laggin indicators
 
-    #create a df to store nowcasted values
-    df_to_pred = df_aggregated.tail(2)
-    df_to_pred = df_to_pred[["date", "gdp_growth", "GDP"]]
  
     #lag variables
+    exclude_columns = ["date", "GDP", "dummy"] #df to exclude later when laggin indicators
     df_lagged = create_lag_features(df_aggregated, exclude_columns, 6) # 6 lags of each indicator 
+
+
+
 
     #drop contemporary indicators and all lag1
     df_lagged = df_lagged.drop(columns=contemp_indicators)
     df_lagged = df_lagged.drop(columns=df_lagged.filter(regex='_lag1$').columns) 
+
+    #create a df to store nowcasted values later
+    df_to_pred = df_lagged.tail(2)
 
     #drop rows with no gdp val
     df_lagged = df_lagged.dropna(subset=["GDP"]) 
@@ -93,15 +93,10 @@ def model_RF(df):
         #Drop NaN values created by lagging 
         df_model = df_model.dropna()
         #Drop 'Date' before defining X
-        X = df_model.drop(columns=["gdp_growth", "GDP", "date"])
+        X = df_model.drop(columns=["gdp_growth", "GDP", "date"]) 
         y = df_model['gdp_growth']
         return X, y
 
-    #recession dates
-    recession_dates = pd.to_datetime([
-        "2020-04-01", "2020-05-01", "2020-06-01",
-        "2020-07-01", "2020-08-01", "2020-09-01"
-    ])
 
     #Model 1 (1 step forecast, so take lag2 to lag 5)
     X_1, y_1 = prepare_model_data(df_lagged, [6], None)
@@ -111,14 +106,10 @@ def model_RF(df):
     X_2, Y_2 = prepare_model_data(df_lagged, [2], None)
     rf_model_2 = RandomForestRegressor(random_state=42).fit(X_2, Y_2)
     
-    #filter out latest row with available data
-    df_latest_date = df_lagged.loc[df_lagged['date'].idxmax():]
-
-    df_latest_indicators = df_latest_date.drop(columns=["date", "GDP", "gdp_growth"])
-
     #ensure that df_pred is sorted in ascending order
     df_to_pred = df_to_pred.reset_index(drop=True).sort_values(by="date", ascending=True)
-
+    df_to_pred_indicators = df_to_pred.drop(columns = ["date", "GDP", "gdp_growth"])
+    df_to_pred = df_to_pred[["date", "gdp_growth", "GDP"]]
     #for loop to fill in gdp_growth
     for index, row in df_to_pred.iterrows():
         # Access values in each row by column name
@@ -127,30 +118,33 @@ def model_RF(df):
         GDP = row['GDP']
         if index == 0:
             #use model 1
-            df_indicators = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1, 6])])
+            df_indicators = df_to_pred_indicators.iloc[[index]]
+            df_indicators = df_indicators.drop(columns=[col for col in df_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1, 6])])
             gdp_growth = rf_model_1.predict(df_indicators)
 
         elif index == 1:
             #use model 2
-            df_indicators = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1, 2])])
+            df_indicators = df_to_pred_indicators.iloc[[index]]
+            df_indicators = df_indicators.drop(columns=[col for col in df_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1, 2])])
             gdp_growth = rf_model_2.predict(df_indicators)
 
         df_to_pred.at[index, 'gdp_growth'] = gdp_growth
 
     #fill in first nowcasted gdp
-    df_to_pred["Nowcasted_GDP"] = np.nan
-    df_to_pred.at[0, "Nowcasted_GDP"] = df_latest_date["GDP"].values[0] * np.exp(df_to_pred.at[0, "gdp_growth"] / 400)
+    """df_to_pred["Nowcasted_GDP"] = np.nan
+    df_to_pred.at[0, "Nowcasted_GDP"] = df_to_pred["GDP"].values[0] * np.exp(df_to_pred.at[0, "gdp_growth"] / 400)"""
 
-    #for loop to fill in rest of nowcasted GDP
+    """#for loop to fill in rest of nowcasted GDP
     for i in range(1, len(df_to_pred)):
         # Calculate 'Nowcasted_GDP' for the current row
         df_to_pred.at[i, "Nowcasted_GDP"] = df_to_pred.at[i - 1, "Nowcasted_GDP"] * np.exp(df_to_pred.at[i, "gdp_growth"] / 400)
 
     df_to_pred.drop(columns=["GDP"], inplace=True)
-    df_to_pred.rename(columns={"gdp_growth": "Nowcasted_GDP_Growth"}, inplace=True)
+    df_to_pred.rename(columns={"gdp_growth": "Nowcasted_GDP_Growth"}, inplace=True)"""
 
 
     return df_to_pred
+
 
 if __name__ == "__main__":
     file_path = "../Data/tree_df.csv"
@@ -258,64 +252,3 @@ df_model3 = df_model3.drop(columns = "gdp_growth_lag3")
 
 #Sort date again 
 df_model3 = df_model3.sort_values(by='date', ascending= True)
-
-
-#Drop NaN values created by lagging 
-df_tree_model3 = df_model3.dropna()
-
-#Drop 'Date' before defining X 
-X_model3 = df_tree_model3.drop(columns=["gdp_growth", "GDP", "date"])
-Y_model3 = df_tree_model3['gdp_growth']
-
-# Train test split 
-X_train_3, X_test_3, Y_train_3, Y_test_3 = train_test_split(X_model3, Y_model3, test_size=0.2, shuffle=False)
-
-# Train Random Forest model for feature selection
-rf_model_3 = RandomForestRegressor(random_state=42)
-rf_model_3.fit(X_train_3, Y_train_3)
-
-#filter out latest row with available data
-df_latest_date = df_lagged.loc[df_lagged['date'].idxmax():]
-df_latest_indicators = df_latest_date.drop(columns=["date", "GDP", "gdp_growth"])
-
-#ensure that df_pred is sorted in ascending order
-df_to_pred = df_to_pred.reset_index(drop=True)
-df_to_pred = df_to_pred.sort_values(by = "date", ascending = True)
-
-#for loop to fill in gdp_growth
-for index, row in df_to_pred.iterrows():
-    # Access values in each row by column name
-    date = row['date']
-    gdp_growth = row['gdp_growth']
-    GDP = row['GDP']
-    if index == 0:
-        #use model 1
-        df_indicators = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [5,6])]) #drop cols of lag5,lag6
-        gdp_growth = rf_model_1.predict(df_indicators)
-        
-    elif index == 1: 
-        df_indictors = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1, 6])]) #drop lag1, lag6
-        df_indicators = df_indictors.drop(columns = ["gdp_growth_lag2"])
-        gdp_growth = rf_model_2.predict(df_indicators)
-    
-    elif index == 2:
-        df_indicators = df_latest_indicators.drop(columns=[col for col in df_latest_indicators.columns if any(col.endswith(f'_lag{i}') for i in [1,2])]) #drop lag1, lag6
-        df_indicators = df_indicators.drop(columns = "gdp_growth_lag3")
-        gdp_growth = rf_model_3.predict(df_indicators)
-
-    df_to_pred.at[index, 'gdp_growth'] = gdp_growth
-
-
-#fill in first nowcasted gdp
-df_to_pred["Nowcasted_GDP"] = np.nan
-df_to_pred.at[0, "Nowcasted_GDP"] = df_latest_date["GDP"].values[0] * np.exp(df_to_pred.at[0, "gdp_growth"]/400)
-
-#for loop to fill in rest of nowcasted GDP
-for i in range(1, len(df_to_pred)):
-    # Calculate 'Nowcasted_GDP' for the current row
-    df_to_pred.at[i, "Nowcasted_GDP"] = df_to_pred.at[i-1, "Nowcasted_GDP"] * np.exp(df_to_pred.at[i, "gdp_growth"]/400)
-
-df_to_pred.drop(columns = ["GDP"], inplace = True)
-df_to_pred.rename(columns = {"gdp_growth":"gdp_growth_forecast"}, inplace = True)
-df_to_pred = df_to_pred.head(3)
-print(df_to_pred)"""
