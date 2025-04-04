@@ -64,7 +64,7 @@ get_missing_months <- function(df, date_column = "date") {
   
   # Use current date (not latest_date) to define the target range
   current_date <- floor_date(Sys.Date(), unit = "month")
-  target_date <- ceiling_date(current_date %m+% months(6), unit = "quarter") - days(1)
+  target_date <- ceiling_date(current_date %m+% months(3), unit = "quarter") - days(1)
   
   # Calculate number of months missing
   num_missing_months <- interval(latest_date, target_date) %/% months(1)
