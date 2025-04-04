@@ -157,7 +157,7 @@ def model_RF_bridge(df, model_path='../Backend/tuned_RF_bridge_model.joblib'):
     # Load pre-tuned RF model
     if os.path.exists(model_path):
         final_rf_model = joblib.load(model_path)
-        print(f"Loaded tuned model from {model_path}")
+        #print(f"Loaded tuned model from {model_path}")
     else:
         raise FileNotFoundError(f"Model not found at {model_path}. Run tuning first.")
 
@@ -183,7 +183,7 @@ def model_RF_bridge(df, model_path='../Backend/tuned_RF_bridge_model.joblib'):
         nowcast_results["Nowcasted_GDP_Growth"] = predicted_growth
         nowcast_results["Nowcasted_GDP"] = predicted_gdp
     else:
-        print("No rows to nowcast.")
+        #print("No rows to nowcast.")
         nowcast_results = pd.DataFrame()
 
     return nowcast_results
