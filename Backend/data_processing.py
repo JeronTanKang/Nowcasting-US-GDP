@@ -11,7 +11,6 @@ Functions:
 """
 
 import pandas as pd
-from statsmodels.tsa.stattools import adfuller
 import numpy as np
 
 
@@ -56,7 +55,7 @@ def aggregate_indicators(df):
         "junk_bond_spread_lag2": "mean",  # Junk bond spread, lag2 (average)
         "junk_bond_spread_lag3": "mean",  # Junk bond spread, lag3 (average)
         "junk_bond_spread_lag4": "mean",  # Junk bond spread, lag4 (average)
-        "dummy": "mean"  # Dummy variable, sum (usually used for counting events)
+        "dummy": "mean"  # Dummy variable, sum 
     }
 
     gdp_data = df[['GDP']].resample('QS').last()  # extract the last available GDP value per quarter
