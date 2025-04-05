@@ -60,64 +60,105 @@ def record_months_to_forecast(df, predictors):
 
     return months_to_forecast
 
-def forecast_indicators(df, exclude=["date","GDP","gdp_growth","gdp_growth_lag1","gdp_growth_lag2","gdp_growth_lag3","gdp_growth_lag4"]):
+
+def forecast_indicators(df, 
+                        exclude=["date", "GDP", "gdp_growth", "gdp_growth_lag1", "gdp_growth_lag2", "gdp_growth_lag3", "gdp_growth_lag4"], # do not predict these cols
+                        lag_dict={
+                            'Capacity_Utilization': 4,
+                            'Construction_Spending': 4,
+                            'Housing_Starts': 4,
+                            'Industrial_Production_lag1': 4,
+                            'Industrial_Production_lag3': 4,
+                            'Interest_Rate_lag1': 3,
+                            'New_Orders_Durable_Goods': 4,
+                            'Nonfarm_Payrolls': 4,
+                            'Trade_Balance': 4,
+                            'Trade_Balance_lag1': 4,
+                            'Unemployment': 4,
+                            'junk_bond_spread': 2,
+                            'junk_bond_spread_lag1': 2,
+                            'junk_bond_spread_lag2': 2,
+                            'junk_bond_spread_lag3': 2,
+                            'junk_bond_spread_lag4': 2,
+                            'yield_spread': 4,
+                            'yield_spread_lag1': 4,
+                            'yield_spread_lag2': 4,
+                            'yield_spread_lag3': 4,
+                            'yield_spread_lag4': 4,
+                            'Business_Inventories': 4,
+                            'CPI': 4,
+                            'Consumer_Confidence_Index': 4,
+                            'Core_PCE': 4,
+                            'Crude_Oil': 4,
+                            'Industrial_Production': 4,
+                            'Interest_Rate': 3,
+                            'New_Home_Sales': 4,
+                            'PPI': 4,
+                            'Personal_Income': 4,
+                            'Retail_Sales': 4,
+                            'Three_Month_Treasury_Yield': 4,
+                            'Wholesale_Inventories': 4
+                        }):
+
     """
     Forecasts missing values for predictor variables using AutoRegressive models.
-
-    This function forecasts missing values for various predictor variables by applying AutoRegressive (AR) models
-    to the available time series data. It uses a lag of 3 months and skips over columns like GDP and other columns
-    specified in the `exclude` list. The function processes each predictor one by one, identifying which months 
-    need to be predicted and filling the missing data.
+    Uses provided lags if lag_dict is given; otherwise, selects optimal lags using AIC.
 
     Args:
-    - df (pd.DataFrame): DataFrame with a 'date' column and predictor variables as other columns. The time series data.
-    - exclude (list): List of columns to exclude from the forecasting process (e.g., GDP, GDP growth rates, etc.). Default is set to exclude 'date', 'GDP', and lag variables.
+    - df (pd.DataFrame): Time series DataFrame with 'date' and predictors.
+    - exclude (list): Columns to exclude from forecasting.
+    - lag_dict (dict, optional): Dictionary specifying the lag to use per column. If None, AIC-based selection is used.
 
     Returns:
-    - pd.DataFrame: DataFrame with missing values filled for the predictor variables based on AR model predictions. The original 'date' column is maintained.
+    - pd.DataFrame: DataFrame with missing predictor values filled using AR models.
+    - dict: Dictionary of optimal (or used) lags per variable.
     """
     df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
-    df = df.set_index("date") 
-
+    df = df.set_index("date")
     predictors = df.columns.difference(exclude)
 
-    # Identify which months need to be forecasted for each predictor
     months_to_forecast = record_months_to_forecast(df, predictors)
-    #print("Months to forecast:", months_to_forecast)
-
-    #print("LOOOOOOKKK HERREEEE", df)
+    final_lag_dict = {} if lag_dict is None else lag_dict.copy()  # Keep track of all lags used
 
     for col in predictors:
         if col == "dummy":
             df[col].fillna(0, inplace=True)
-            continue  # skip forecasting for dummy
-        if col in months_to_forecast and months_to_forecast[col]:
-            indic_data = df[col].dropna().sort_index()
+            continue
 
-            # Iterate over each month to forecast one by one
+        if col in months_to_forecast and months_to_forecast[col]:
             for forecast_date in months_to_forecast[col]:
-                # Get the data before the current forecast_date
                 data_before_forecast = df.loc[df.index <= forecast_date, col].dropna()
 
+                if len(data_before_forecast) < 10:
+                    continue
+
                 try:
-                    # Fit the model to the data before the current forecast date
-                    final_model = AutoReg(data_before_forecast, lags=3, old_names=False).fit()
+                    if col in final_lag_dict:
+                        best_lag = final_lag_dict[col]
+                    else: # if a new col is being used, search for best lags
+                        best_aic = np.inf
+                        best_lag = 1
+                        max_lags = 4
 
-                    # Predict the missing value for the current date
+                        for lag in range(1, max_lags + 1):
+                            try:
+                                model = AutoReg(data_before_forecast, lags=lag, old_names=False).fit()
+                                if model.aic < best_aic:
+                                    best_aic = model.aic
+                                    best_lag = lag
+                            except:
+                                continue
+
+                        final_lag_dict[col] = best_lag
+
+                    final_model = AutoReg(data_before_forecast, lags=best_lag, old_names=False).fit()
                     predicted_value = final_model.predict(start=len(data_before_forecast), end=len(data_before_forecast)).iloc[0]
-
-                    # Update the DataFrame with the predicted value at the missing date
                     df.loc[forecast_date, col] = predicted_value
 
-                    # Optionally, print the predicted value for debugging
-                    #print(f"Predicted {col} for {forecast_date}: {predicted_value}")
-
                 except Exception as e:
-                    pass
-                    #print(f"Could not forecast {col} for {forecast_date} due to: {e}")
+                    pass 
 
-    df = df.reset_index()
-    df = df.sort_values(by="date").reset_index(drop=True)
-    #print("Returned by forecast_indicators:", df)
-    #print("prediction df", df.tail(13))
+    #print(final_lag_dict)
+
+    df = df.reset_index().sort_values(by="date").reset_index(drop=True)
     return df
