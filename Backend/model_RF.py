@@ -21,8 +21,6 @@ import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-#pd.reset_option("display.max_columns")
-pd.set_option("display.max_columns", None)
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
@@ -130,6 +128,8 @@ def model_RF(df):
 
         df_to_pred.at[index, 'gdp_growth'] = gdp_growth
 
+    df_to_pred.rename(columns={"gdp_growth": "Nowcasted_GDP_Growth"}, inplace=True)
+
     #fill in first nowcasted gdp
     """df_to_pred["Nowcasted_GDP"] = np.nan
     df_to_pred.at[0, "Nowcasted_GDP"] = df_to_pred["GDP"].values[0] * np.exp(df_to_pred.at[0, "gdp_growth"] / 400)"""
@@ -142,6 +142,7 @@ def model_RF(df):
     df_to_pred.drop(columns=["GDP"], inplace=True)
     df_to_pred.rename(columns={"gdp_growth": "Nowcasted_GDP_Growth"}, inplace=True)"""
 
+    #print(df_to_pred)
 
     return df_to_pred
 
