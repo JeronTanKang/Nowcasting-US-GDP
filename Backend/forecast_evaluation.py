@@ -36,12 +36,15 @@ model_and_horizon =[
 
 
 
-def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_date=None, usage="multi_period_forecast"):
+def generate_oos_forecast(df, df_nonlinear, window_size=int(12*17.5), time_travel_date=None, usage="multi_period_forecast"):
     """
     Generates out-of-sample forecasts using a rolling window approach for multiple models.
 
     This function forecasts GDP growth and GDP levels for each forecast horizon (from multiple models: AR, ADL bridge, RF, RF bridge) 
     by iterating over a fixed-size rolling window and applying the appropriate models for each window.
+
+    Window size of 17.5 years ensures that there will be 12.5 years of data to calculate RMSFE from. Since currently we are using 30 years of historical data. 
+    12.5 years * 4 quarters = 50 data points to calculate RSMFE.
 
     Args:
         df (pd.DataFrame): DataFrame containing the raw data with GDP and other economic indicators.
@@ -95,14 +98,14 @@ def generate_oos_forecast(df, df_nonlinear, window_size=(12*20), time_travel_dat
         range_for_start_indices = 6 # only 6 loops for 6 months forecast 
 
     for start_index in range(range_for_start_indices):
-        print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[start_index + window_size - 1]['date'].date())
-        
 
         if usage == "multi_period_forecast":
             end_index = start_index + window_size
+            print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[start_index + window_size - 1]['date'].date())
         elif usage == "single_period_forecast":
             try:
                 end_index = df_trimmed.index[df_trimmed['date'] == time_travel_date][0] - 1 + start_index
+                print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[end_index-1]['date'].date())
             except IndexError:
                 print(f"Date {time_travel_date} not found in df_trimmed.")
                 end_index = None
@@ -478,6 +481,7 @@ if __name__ == "__main__":
 
 
     # Test RMSFE generation 
+
     res = generate_oos_forecast(df, df_nonlinear)
     res = add_combined_bridge_forecasts(res)
     model_and_horizon += [
@@ -508,7 +512,7 @@ if __name__ == "__main__":
 
     # Test single window forecast
     """
-    res_time_travel = generate_oos_forecast(df, df_nonlinear, time_travel_date="2016-03-01", usage="single_period_forecast")
+    res_time_travel = generate_oos_forecast(df, df_nonlinear, time_travel_date="2018-03-01", usage="single_period_forecast")
     print(res_time_travel)
     res_time_travel.to_csv("../Data/res_time_travel.csv", index=False)
     """
