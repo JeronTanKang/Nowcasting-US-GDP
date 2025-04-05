@@ -216,6 +216,8 @@ def model_ADL_bridge(df):
 
     nowcast_df = nowcast_df.reset_index(drop=True)
 
+    #print(nowcast_df)
+
     return nowcast_df
 
 
