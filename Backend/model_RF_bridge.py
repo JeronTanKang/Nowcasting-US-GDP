@@ -186,6 +186,8 @@ def model_RF_bridge(df, model_path='../Backend/tuned_RF_bridge_model.joblib'):
         #print("No rows to nowcast.")
         nowcast_results = pd.DataFrame()
 
+    nowcast_results = nowcast_results.reset_index(drop=True)
+
     return nowcast_results
 
 
