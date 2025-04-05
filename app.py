@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from Backend.model_ADL_bridge import model_bridge  # Import the function from model_ADL_bridge.py
+from Backend.model_ADL_bridge import model_ADL_bridge  # Import the function from model_ADL_bridge.py
 from Backend.model_AR import model_AR  # Import the function from model_AR.py
 from Frontend.dashboard_layout import display_dashboard  # Import the UI components from the frontend
 
@@ -10,29 +10,44 @@ st.set_page_config(
     initial_sidebar_state="expanded"
     )
 
-st.write("Loading data...")  # Debug marker
-data = pd.read_csv("Data/bridge_df.csv")
-st.write("Data loaded:", data.shape)
+st.title("GDP Nowcasting")
+st.markdown("Nowcasting GDP growth across time horizons based on different models (ADL Bridge, AR, RF Bridge, RF).")
+tab1, tab2 = st.tabs(["Nowcasting Results", "Model Comparison"])
 
-# Load default dataset
-data_path = "Data/bridge_df.csv"
-data = pd.read_csv(data_path)
 
-# Let user select model
-model_choice = st.selectbox("Select a Model for GDP Nowcasting", ("ADL Model", "AR Model"))
+with tab1:
+    st.write("Loading data...")  # Debug marker
+    data = pd.read_csv("Data/bridge_df.csv")
+    st.write("Data loaded:", data.shape)
 
-# res = generate_oos_forecast(df, df_nonlinear, time_travel_date="fill date here", usage="single_period_forecast")
+    # Load default dataset
+    data_path = "Data/bridge_df.csv"
+    data = pd.read_csv(data_path)
 
-# Generate nowcast
-if model_choice == "ADL Model":
-    st.info("Running ADL model...")
-    nowcast = model_bridge(data)
-    model_name = "ADL Model"
+    # Let user select model
+    model_choice = st.selectbox("Select a Model for GDP Nowcasting", ("ADL Model", "AR Model"))
 
-elif model_choice == "AR Model":
-    st.info("Running AR model...")
-    nowcast = model_AR(data)
-    model_name = "AR Model"
+    # res = generate_oos_forecast(df, df_nonlinear, time_travel_date="fill date here", usage="single_period_forecast")
 
-# Display results
-display_dashboard(nowcast, model_name)
+    # Generate nowcast
+    if model_choice == "ADL Model":
+        st.info("Running ADL model...")
+        nowcast = model_ADL_bridge(data)
+        model_name = "ADL Model"
+
+    elif model_choice == "AR Model":
+        st.info("Running AR model...")
+        nowcast = model_AR(data)
+        model_name = "AR Model"
+
+    # Display results
+    display_dashboard(nowcast, model_name)
+
+with tab2: 
+    st.title("📊 Model Performance Comparison")
+    st.write("Compare GDP nowcasting results across different models against past actual GDP values.")
+    # Loading datasets frm the diff models 
+    #data = pd.read_csv("Data/ADL_bridge")
+
+    # Let user select model
+    model_types = st.multiselect("Select Model Types", ["AR", "ADL Bridge", "RF", "RF Bridge"])
