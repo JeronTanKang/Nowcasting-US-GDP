@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd 
 import os
 import sys
+from scipy.stats import skew, kurtosis
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from model_AR import model_AR
 from model_ADL_bridge import model_ADL_bridge
@@ -105,10 +106,11 @@ def generate_oos_forecast(df, df_nonlinear, window_size=int(12*17.5), time_trave
         elif usage == "single_period_forecast":
             try:
                 end_index = df_trimmed.index[df_trimmed['date'] == time_travel_date][0] - 1 + start_index
-                print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[end_index-1]['date'].date())
             except IndexError:
                 print(f"Date {time_travel_date} not found in df_trimmed.")
                 end_index = None
+            start_index = 0
+            print("Window:", df_trimmed.iloc[start_index]['date'].date(), "to", df_trimmed.iloc[end_index-1]['date'].date())
         
         historical_data = df_trimmed.iloc[start_index:end_index]
         historical_data_tree = df_trimmed_tree.iloc[start_index:end_index]
@@ -472,6 +474,33 @@ def drop_covid(df):
     return df[(df['date'].dt.year != 2020) & (df['date'] != pd.Timestamp("2021-01-01"))] 
 
 
+def calculate_skew_kurtosis(error_df):
+    """
+    Calculates skewness and kurtosis for each column in the DataFrame that starts with 'Error_'.
+
+    Args:
+        error_df (pd.DataFrame): DataFrame containing residual error columns (prefixed with 'Error_').
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns ['Model', 'Skewness', 'Kurtosis'].
+    """
+    error_cols = [col for col in error_df.columns if col.startswith("Error_")]
+
+    results = []
+    for col in error_cols:
+        residuals = error_df[col].dropna()
+        col_skew = skew(residuals)
+        col_kurt = kurtosis(residuals, fisher=True)  # Fisher=True gives excess kurtosis
+
+        results.append({
+            "Model": col.replace("Error_", ""),
+            "Skewness": col_skew,
+            "Kurtosis": col_kurt
+        })
+
+    return pd.DataFrame(results)
+
+
 
 if __name__ == "__main__":
     file_path1 = "../Data/bridge_df.csv"
@@ -481,6 +510,7 @@ if __name__ == "__main__":
 
 
     # Test RMSFE generation 
+    
 
     res = generate_oos_forecast(df, df_nonlinear)
     res = add_combined_bridge_forecasts(res)
@@ -508,6 +538,12 @@ if __name__ == "__main__":
     mae_df.to_csv("../Data/mae_df.csv", index=False)
     rmsfe_df_dropped_covid.to_csv("../Data/rmsfe_dropped_covid.csv", index=False)
     mae_df_dropped_covid.to_csv("../Data/mae_df_dropped_covid.csv", index=False)
+
+    distribution_no_covid = calculate_skew_kurtosis(row_error_df_dropped_covid)
+    distribution = calculate_skew_kurtosis(row_error_df)
+
+    distribution_no_covid.to_csv("../Data/distribution_no_covid.csv", index=False)
+    distribution.to_csv("../Data/distribution.csv", index=False)
 
 
     # Test single window forecast
