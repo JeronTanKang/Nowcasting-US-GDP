@@ -26,27 +26,24 @@ def model_AR(df):
         pd.DataFrame: A DataFrame with the forecasted GDP growth and the nowcasted GDP values for the forecasted period.
     """
 
-    # Initial cleaning (should ideally be done once at the beginning of the pipeline)
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values(by="date").reset_index(drop=True)
 
-    # Keep only relevant columns
+    # Keep only the columns needed for AR model
     df = df[["date", "GDP", "gdp_growth", "gdp_growth_lag2", "gdp_growth_lag3"]]
 
-    #print("model AR before remove", df.tail(10))
 
-
-    # Aggregate (if needed — assuming your aggregate_indicators handles this properly)
+    # Aggregate to quarterly frequency
     df = aggregate_indicators(df)
 
-    # Split train and forecast sets
+    # Split the dataframe into the portion for model fitting (train_df) and for forecasting (forecast_df)
     train_df = df.iloc[:-2].copy()
-    forecast_df = df.iloc[-2:].copy() # benchmark model will always only forecast the last 2 quarters in the df
+    forecast_df = df.iloc[-2:].copy() # Benchmark AR model will always only forecast the last 2 quarters in the df as specified in the technical documentation.
 
-    # Drop rows with missing lags or target
+    # Drop rows with missing lags or gdp_growth
     train_lagged = train_df.dropna(subset=["gdp_growth_lag2", "gdp_growth_lag3", "gdp_growth"]).copy()
 
-    # Prepare training data
+    # Prepare data for model fit
     X_train = train_lagged[["gdp_growth_lag2", "gdp_growth_lag3"]]
     y_train = train_lagged["gdp_growth"]
     X_train = sm.add_constant(X_train)
@@ -56,40 +53,28 @@ def model_AR(df):
     # Fit OLS model
     ols_model = sm.OLS(y_train, X_train).fit()
 
+    # Run this line below to check coefficient estimates.
     #print(ols_model.summary())
 
-    # === DIRECT FORECAST === #
-    # Use lag2 and lag3 from forecast_df as-is
+    # Direct forecast with lag2 and lag3 of gdp growth
     X_forecast = forecast_df[["gdp_growth_lag2", "gdp_growth_lag3"]].copy()
     X_forecast = sm.add_constant(X_forecast)
     X_forecast = X_forecast.apply(pd.to_numeric, errors='coerce')
 
     gdp_growth_forecast = ols_model.predict(X_forecast).values
 
-    # Convert growth to GDP level (starting from last known actual GDP)
-    last_actual_gdp = train_df["GDP"].iloc[-1]
-    gdp_forecast = []
-
-    for growth in gdp_growth_forecast:
-        next_gdp = last_actual_gdp * np.exp(growth / 400)
-        gdp_forecast.append(next_gdp)
-        last_actual_gdp = next_gdp  # We can keep updating this since it's just for level calc
-
     # Assign forecast values
     forecast_df["Nowcasted_GDP_Growth"] = gdp_growth_forecast
-    forecast_df["Nowcasted_GDP"] = gdp_forecast
 
     forecast_df = forecast_df.reset_index(drop=True)
-    #print(forecast_df[["date", "Nowcasted_GDP_Growth", "Nowcasted_GDP"]])
 
-    return forecast_df[["date", "Nowcasted_GDP_Growth", "Nowcasted_GDP"]]
+    return forecast_df[["date", "Nowcasted_GDP_Growth"]]
 
 
 if __name__ == "__main__":
     file_path = "../Data/bridge_df.csv"
-    #file_path = "../Data/tseting_adl.csv"
     
     df = pd.read_csv(file_path)
     next_gdp = model_AR(df)
     
-    print("Nowcasted GDP for the most recent quarter:", next_gdp)
+    print("Output from model_AR:", next_gdp)
