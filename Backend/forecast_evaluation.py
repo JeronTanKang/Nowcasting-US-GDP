@@ -47,6 +47,27 @@ def generate_oos_forecast(df, df_nonlinear, window_size=int(12*17.5), time_trave
     Window size of 17.5 years ensures that there will be 12.5 years of data to calculate RMSFE from. Since currently we are using 30 years of historical data. 
     12.5 years * 4 quarters = 50 data points to calculate RSMFE.
 
+    Release schedule for selected indicators:
+    example: 
+        if the current window is predicting the monthly flash estimate of 2012-09-01, our methodology assumes we are at the end of the month (2012-09-30). 
+        
+        based on fred MD release schedule the following monthly indicators will be available by the end of the same month
+        -Trade_Balance_lag1 
+        -Industrial_Production_lag1
+        -Housing_Starts_lag2
+        -junk_bond_spread
+        -junk_bond_spread_lag1
+        -Nonfarm_Payrolls_lag1
+        -New_Home_Sales_lag1
+
+        the following will only be available for the previous month:
+        -Construction_Spending : typically released on the first day, 2 months later
+        -Housing_Starts : typically released the second/third week the next month
+        -Capacity_Utilization : typically released the second/third week the next month
+        -Unemployment : typically released the first week the next month 
+        -New_Orders_Durable_Goods : typically released on the first day, 2 months later
+        
+
     Args:
         df (pd.DataFrame): DataFrame containing the raw data with GDP and other economic indicators.
         df_nonlinear (pd.DataFrame): DataFrame containing additional non-linear data for forecasting.
@@ -162,6 +183,8 @@ def generate_oos_forecast(df, df_nonlinear, window_size=int(12*17.5), time_trave
 
         ## Store and remove last and second last non-NaN GDP values
 
+        #print("df befor", historical_data.tail(10))
+
         gdp_valid_indices = historical_data['GDP'].dropna().index
         last_gdp = second_last_gdp = None
         if len(gdp_valid_indices) >= 1:
@@ -198,6 +221,23 @@ def generate_oos_forecast(df, df_nonlinear, window_size=int(12*17.5), time_trave
             historical_data_tree.at[gdp_growth_valid_indices_tree[-1], 'gdp_growth'] = float('nan')
 
         actual_gdp_growth = last_gdp_growth
+
+        # drop the monthly indicators which are typically only released the month later
+        indicators_released_late = ["Construction_Spending", "Housing_Starts", "Capacity_Utilization", "Unemployment", "New_Orders_Durable_Goods"]
+
+        for indic in indicators_released_late:
+            if indic in historical_data.columns:
+                valid_indices = historical_data[indic].dropna().index
+                if len(valid_indices) >= 1:
+                    historical_data.at[valid_indices[-1], indic] = float('nan') # remove value
+            if indic in historical_data_tree.columns:
+                valid_indices = historical_data_tree[indic].dropna().index
+                if len(valid_indices) >= 1:
+                    historical_data_tree.at[valid_indices[-1], indic] = float('nan') # remove value
+
+
+
+        #print("df", historical_data.tail(10))
 
         #### FORECAST FROM  ADL BRIDGE ####
         model_adl_output = model_ADL_bridge(historical_data)  # Get the model output DataFrame
