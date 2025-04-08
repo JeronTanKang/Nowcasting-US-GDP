@@ -77,4 +77,4 @@ if __name__ == "__main__":
     df = pd.read_csv(file_path)
     next_gdp = model_AR(df)
     
-    print("Output from model_AR:", next_gdp)
+    print("model_AR output:", next_gdp)
