@@ -127,7 +127,8 @@ def model_ADL_bridge(df):
                     #"Construction_Spending",
                     "yield_spread",
                     "yield_spread_lag1",
-                    "yield_spread_lag2","yield_spread_lag3","yield_spread_lag4"
+                    "yield_spread_lag2","yield_spread_lag3","yield_spread_lag4",
+                    "Nonfarm_Payrolls"
                      ]
     ##########################
 
