@@ -222,7 +222,7 @@ def generate_oos_forecast(df, df_nonlinear, window_size=int(12*17.5), time_trave
 
         actual_gdp_growth = last_gdp_growth
 
-        # drop the monthly indicators which are typically only released the month later
+        # drop the value from the monthly indicators which are typically only released the month later
         indicators_released_late = ["Construction_Spending", "Housing_Starts", "Capacity_Utilization", "Unemployment", "New_Orders_Durable_Goods"]
 
         for indic in indicators_released_late:
