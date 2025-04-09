@@ -25,7 +25,7 @@ from data_processing import aggregate_indicators
 from forecast_bridge_indicators import record_months_to_forecast, forecast_indicators
 
 
-def fit_ols_model(df, drop_variables):
+def fit_ols_model(df, variables_to_exclude_from_ADL):
     """
     Fits an Ordinary Least Squares regression model using GDP as the dependent variable 
     and a set of indicators as independent variables.
@@ -37,38 +37,23 @@ def fit_ols_model(df, drop_variables):
     Args:
     - df (pd.DataFrame): DataFrame containing 'date' as the index, 'GDP' and 'gdp_growth' columns, 
                           along with other economic indicator columns.
-    - drop_variables (list): List of column names to exclude from the independent variables in the model (e.g., 'GDP', 'gdp_growth').
+    - variables_to_exclude_from_ADL (list): List of column names to exclude from the independent variables in the model (e.g., 'GDP', 'gdp_growth').
 
     Returns:
     - model: Fitted OLS regression model.
     """
 
-    #print("XXXXXX", df)
     df = df.set_index('date')
     df = df.iloc[::-1].reset_index(drop=True) # reverse row order
 
 
-
-    # do i need this safety check?
-    #df = df.dropna(subset=['GDP'])
-
-
-    # Forward-fill missing values in indicators (just in case)
-    df = df.fillna(method='ffill') 
-
-    #print(df)
-
+    X = df.drop(columns=variables_to_exclude_from_ADL) 
     Y = df['gdp_growth']  
-    X = df.drop(columns=drop_variables) 
-
-
-
-    # add constant for the intercept term
-    #X = sm.add_constant(X)
 
     model = sm.OLS(Y, X).fit()
 
-    #print(model.summary())
+    # Run this line below to check coefficient estimates.
+    #print(ols_model.summary())
     
     return model
 
@@ -95,25 +80,15 @@ def model_ADL_bridge(df):
     """
 
     df["date"] = pd.to_datetime(df["date"])
-    #print("ORIGINAL DF", df)
 
-    train_df = df[df["GDP"].notna()].copy()
-    forecast_df = df[df["GDP"].isna()].copy()
-
-    #print("PPPPPPEEEEEEEEKKKKK",df_aggregated)
-
-    # step 1 aggregate
-    # only want to pass into fit_ols_model the train data
+    # Aggregate to quarterly frequency
     df_aggregated = aggregate_indicators(df)
+
+    # Only use quarters where GDP data has been released to fit model
     train_ols = df_aggregated[df_aggregated["GDP"].notna()].copy()
 
-    # step 1: fit ols on quarterly data
-
-    #print("PPPPPPEEEEEEEEKKKKK",train_ols)
-
-    ##########################
-    drop_variables = ["GDP","gdp_growth","gdp_growth_lag2", "gdp_growth_lag3", "gdp_growth_lag4",
-                      
+    # to exclude certain variables from being used in the model, add them to variables_to_exclude_from_ADL
+    variables_to_exclude_from_ADL = ["GDP","gdp_growth","gdp_growth_lag2", "gdp_growth_lag3", "gdp_growth_lag4",
                     #"gdp_growth_lag1",
                     #"junk_bond_spread",
                     #"junk_bond_spread_lag1",
@@ -130,104 +105,70 @@ def model_ADL_bridge(df):
                     "yield_spread_lag2","yield_spread_lag3","yield_spread_lag4",
                     "Nonfarm_Payrolls"
                      ]
-    ##########################
 
-    ols_model = fit_ols_model(train_ols, drop_variables)
+    ols_model = fit_ols_model(train_ols, variables_to_exclude_from_ADL)
     
-    # step 2: for loop to forecast values for each indicator
-    # OK DONE FOR STEP 2
+    # Forecast values for monthly indicators that have not been released 
     monthly_indicators_forecasted = forecast_indicators(df)
-    #print("monthly_indicators_forecasted",monthly_indicators_forecasted)
 
-    # step 3: generate nowcast
-    #monthly_indicators_forecasted.index = pd.to_datetime(monthly_indicators_forecasted.index)
-    quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) # aggregate to quartlerly
+    # Aggregate to quarterly frequency
+    quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) 
 
-    #print("quarterly_indicators_forecasted",quarterly_indicators_forecasted.tail(10))
+    variables_to_exclude_from_ADL.append("date")
 
-    drop_variables.append("date")
-    predictors = quarterly_indicators_forecasted.drop(columns=drop_variables, errors='ignore')
-    #predictors = sm.add_constant(predictors, has_constant='add')  
+    # Create prediction data frame for values used to generate forecast
+    predictors = quarterly_indicators_forecasted.drop(columns=variables_to_exclude_from_ADL, errors='ignore')
 
-    # where mask is the dates to forecast
-    #print("serious check here", quarterly_indicators_forecasted.tail(10))
+    # rows_to_forecast is the quarters where GDP is na (since they are unreleased) and an additional condition that they must be the 4 most recent quarters is added for safety
+    rows_to_forecast = (quarterly_indicators_forecasted["GDP"].isna()) & (quarterly_indicators_forecasted.index >= quarterly_indicators_forecasted.index[-4]) 
+    predictors_to_forecast = predictors[rows_to_forecast]
+    dates_to_forecast = quarterly_indicators_forecasted["date"][rows_to_forecast]
 
-    # set -4 as the limit since there may be up to 4 quarters of gdp missing, depending on when this model is run
-
-    mask = (quarterly_indicators_forecasted["GDP"].isna()) & (quarterly_indicators_forecasted.index >= quarterly_indicators_forecasted.index[-4]) 
-    #mask = quarterly_indicators_forecasted["GDP"].isna()
-    predictors_to_forecast = predictors[mask]
-    dates_to_forecast = quarterly_indicators_forecasted["date"][mask]
-
+    # Model prediction
     nowcast_growth = ols_model.predict(predictors_to_forecast)
-    #print("OUTCOMES (gdp_growth forecast):", nowcast_growth)
 
-    # Iterated forecasting for GDP growth and GDP
+    # Lists to store results for iterated forecasting of GDP growth 
     nowcast_growth = []
-    nowcasted_gdp_levels = []
-    
-    # Initialize the last known GDP
-    last_actual_gdp = train_ols["GDP"].dropna().iloc[-1]  # Last known actual GDP
 
-    # Initialize a dictionary to store predicted growth values (gdp_growth_lag1 and lag2)
+    # Dictionary to store gdp_growth_lag1 
     last_actual_growth = quarterly_indicators_forecasted["gdp_growth"][
-    (quarterly_indicators_forecasted["gdp_growth"].notna()) & 
-    (quarterly_indicators_forecasted["gdp_growth"] != 0)].iloc[-1]
+        (quarterly_indicators_forecasted["gdp_growth"].notna()) & 
+        (quarterly_indicators_forecasted["gdp_growth"] != 0)].iloc[-1]
 
     predicted_growth_dict = {0: last_actual_growth}
     
-
     predictors_to_forecast = predictors_to_forecast.reset_index(drop=True)
-        
-    #print("predictors_to_forecast", predictors_to_forecast)
 
-    # Loop over predictors to forecast iteratively
+    # Loop over predictors_to_forecast to generate iterated forecasts
     for idx, row in predictors_to_forecast.iterrows():
+        # adjusted_idx is used to retrieve gdp_growth_lag1 from predicted_growth_dict for iterated forecasting
         adjusted_idx = idx + 1 
 
-        # Step 1: Update the current row's gdp_growth_lag1 and lag2 with the predicted value from the dictionary
+        # If the current prediction requires gdp_growth_lag1 forecasted in the previous loop, retrieve value from predicted_growth_dict
         if pd.isna(row["gdp_growth_lag1"]) or row["gdp_growth_lag1"] == 0:
             row["gdp_growth_lag1"] = predicted_growth_dict.get(adjusted_idx - 1, last_actual_growth)
-        #if pd.isna(row["gdp_growth_lag2"]) or row["gdp_growth_lag2"] == 0:
-        #    row["gdp_growth_lag2"] = predicted_growth_dict.get(adjusted_idx - 2, last_actual_growth)
 
-        #print("prediction is made on this row \n",row)
-        # Step 2: Predict GDP growth for the current row
+        #Predict GDP growth for the current row
         predicted_growth = ols_model.predict([row])[0]
-        #print(idx, predicted_growth)
+
         nowcast_growth.append(predicted_growth)
 
-        # Step 3: Convert GDP growth to GDP level for the current period
-        next_gdp = last_actual_gdp * np.exp(predicted_growth / 400)  # Convert growth rate to GDP level
-        nowcasted_gdp_levels.append(next_gdp)
-
-        # Step 4: Update the last known GDP for the next iteration
-        last_actual_gdp = next_gdp  # Update for next forecast
-
-        # Step 5: Store the predicted growth in the dictionary for the next row
+        #Update the current row's gdp_growth_lag1 with the predicted value from the dictionary
         predicted_growth_dict[adjusted_idx] = predicted_growth
-
-        #print("iterated updating",predicted_growth_dict)
 
     nowcast_df = pd.DataFrame({
         "date": pd.to_datetime(dates_to_forecast),
-        "Nowcasted_GDP_Growth": nowcast_growth,
-        "Nowcasted_GDP": nowcasted_gdp_levels
+        "Nowcasted_GDP_Growth": nowcast_growth
     })
 
     nowcast_df = nowcast_df.reset_index(drop=True)
-
-    #print(nowcast_df)
 
     return nowcast_df
 
 
 if __name__ == "__main__":
     file_path = "../Data/bridge_df.csv"
-    #file_path = "../Data/tseting_adl.csv"
-    #file_path = "../Data/manual_testing.csv"
     df = pd.read_csv(file_path)
-    #print("df going in", df)
 
     print(model_ADL_bridge(df))
 
