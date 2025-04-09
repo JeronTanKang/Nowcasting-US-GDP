@@ -31,8 +31,6 @@ def aggregate_indicators(df):
 
     df = df.set_index('date')
 
-    #print("THIS IS WHAT WORKS FOR aggregate_indicators", df)
-
     aggregation_rule = {
         "GDP": "sum",  # GDP should be aggregated using mean
         "gdp_growth": "sum",  # GDP growth, as a rate, should be averaged
@@ -41,11 +39,14 @@ def aggregate_indicators(df):
         "gdp_growth_lag3": "sum",  # Lagged GDP growth, average
         "gdp_growth_lag4": "sum",  # Lagged GDP growth, average
         "Nonfarm_Payrolls": "sum",  # Sum of non-farm payrolls
+        "Nonfarm_Payrolls_lag1": "sum", # Non-farm payrolls, lag 1(sum)
         "Construction_Spending": "sum",  # Sum of construction spending
         "Trade_Balance_lag1": "sum",  # Trade balance, lag1 (sum)
         "Industrial_Production_lag1": "mean",  # Industrial production, lag1 (average)
         "Industrial_Production_lag3": "mean",  # Industrial production, lag3 (average)
+        "New_Home_Sales_lag1": "sum", # New Home Sales, lag1, sum 
         "Housing_Starts": "sum",  # Housing starts, sum
+        "Housing_Starts_lag2": "sum", # Housing starts, lag 2 (sum)
         "Capacity_Utilization": "mean",  # Capacity utilization, average
         "New_Orders_Durable_Goods": "sum",  # New orders for durable goods, sum
         "Interest_Rate_lag1": "mean",  # Interest rate, lag1 (average)
@@ -58,15 +59,16 @@ def aggregate_indicators(df):
         "dummy": "mean"  # Dummy variable, sum 
     }
 
-    gdp_data = df[['GDP']].resample('QS').last()  # extract the last available GDP value per quarter
+    # Extract the last available GDP value each quarter
+    gdp_data = df[['GDP']].resample('QS').last()  
 
     indicators_data = pd.DataFrame()
 
+    # Remove columns that should not be aggregated
     if "date" in df.columns:
         df_indicators = df.drop(columns=["date", "GDP"], errors="ignore")
     else:
         df_indicators = df.drop(columns=["GDP"], errors="ignore")
-    #df_indicators = df.drop(columns=["GDP"])
 
     for col in df_indicators.columns:  
         if col in aggregation_rule:
@@ -76,20 +78,17 @@ def aggregate_indicators(df):
             elif method == "sum":
                 indicators_data[col] = df_indicators[col].resample('QS').sum()
         else:
-            # Default to 'mean' for columns not listed in aggregation_rule
+            # Default to mean if there are columns not listed in aggregation_rule
             indicators_data[col] = df_indicators[col].resample('QS').mean()
 
     quarterly_df = gdp_data.merge(indicators_data, left_index=True, right_index=True, how='left')
     quarterly_df = quarterly_df.reset_index()
-    #quarterly_df['date'] = quarterly_df['date'].dt.strftime('%Y-%m')
     quarterly_df["date"] = pd.to_datetime(quarterly_df["date"], format='%Y-%m')
 
-    #quarterly_df = quarterly_df.iloc[::-1].reset_index(drop=True) # reverse row order before returning
-
+    # Run line below to check output
     #print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
     return quarterly_df
 
-#Function to create lag features
 def create_lag_features(df, exclude_columns, max_lag):
     """
     Creates lag features for time series data.
@@ -107,7 +106,7 @@ def create_lag_features(df, exclude_columns, max_lag):
     """
    
     if "date" in df.columns:  
-        df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")  # Convert date if it exists
+        df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
 
     for col in df.columns:
         if col not in exclude_columns:
@@ -128,21 +127,16 @@ def get_missing_months(df, date_column="date"):
         int: The number of months required to complete the current quarter.
     """
 
-    # Ensure the date column is in datetime format
     df[date_column] = pd.to_datetime(df[date_column])
 
-    # Get the latest date in the dataset
     latest_date = df[date_column].max()
     
-    # Get the month number (1 to 12)
     latest_month = latest_date.month
-
-    #print("latest_month", latest_month)
     
     # Calculate how many months remain to complete the current quarter
     months_to_complete_quarter = (3 - ((latest_month ) % 3)) % 3
 
-    # Total months to add: remaining months of current quarter + 2 quarters (6 months)
+    # add 3 more months (1 quarter)
     total_months_to_add = months_to_complete_quarter + 3
 
     return total_months_to_add
@@ -163,7 +157,6 @@ def add_missing_months(df, date_column="date"):
     num_extra_rows = get_missing_months(df, date_column)
 
     if num_extra_rows > 0:
-        # Get the latest date in the dataset
         latest_date = pd.to_datetime(df[date_column].max())
 
         # Generate new dates starting from the next month after the latest date
@@ -173,13 +166,11 @@ def add_missing_months(df, date_column="date"):
             freq='MS'
         )
 
-        # Create new rows with NaN values except the date column
         new_rows = pd.DataFrame({date_column: new_dates})
 
-        # Append to the original dataframe
+        # Append to original dataframe
         df = pd.concat([df, new_rows], ignore_index=True)
 
-    # Sort and reset index
     df = df.sort_values(by=date_column).reset_index(drop=True)
     return df
 
