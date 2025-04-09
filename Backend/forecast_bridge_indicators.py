@@ -36,33 +36,36 @@ def record_months_to_forecast(df, predictors):
             that need forecasting.
     """
     
-    
     if not isinstance(df.index, pd.DatetimeIndex):
         df.index = pd.to_datetime(df.index)
 
-    #print("input to record months:", df)
-
-    months_to_forecast = {}  # Dict to store missing months for each predictor
+    months_to_forecast = {} 
 
     for col in predictors:
         months_to_forecast[col] = [] 
 
+        # last_known_index is the last row where data was released for the predictor
         last_known_index = df[col].dropna().index.max() if df[col].dropna().size > 0 else None
 
         if last_known_index:
-            last_known_date = pd.to_datetime(last_known_index)  # Ensure it's datetime
+            last_known_date = pd.to_datetime(last_known_index) 
 
             next_date = last_known_date + pd.DateOffset(months=1)
 
+            # Iterate to the end of the dataframe to add all the dates where data is unreleased
             while next_date in df.index and pd.isna(df.loc[next_date, col]):
-                months_to_forecast[col].append(next_date)  # Store as datetime
+                months_to_forecast[col].append(next_date)  
                 next_date += pd.DateOffset(months=1)
 
+    # Run the line below to see the months_to_forecast
+    #print(months_to_forecast)
     return months_to_forecast
 
 
 def forecast_indicators(df, 
-                        exclude=["date", "GDP", "gdp_growth", "gdp_growth_lag1", "gdp_growth_lag2", "gdp_growth_lag3", "gdp_growth_lag4"], # do not predict these cols
+                        exclude=["date", "GDP", "gdp_growth", "gdp_growth_lag1", "gdp_growth_lag2", "gdp_growth_lag3", "gdp_growth_lag4"], # These columns should not be forecasted 
+                        # lag_dict stores the optimal lags for each indicator, determined using BIC 
+                        # optimal lags is stored in a dictionary and not re-run each time to reduce computation time
                         lag_dict={
                             'Capacity_Utilization': 4,
                             'Construction_Spending': 4,
@@ -118,9 +121,12 @@ def forecast_indicators(df,
     predictors = df.columns.difference(exclude)
 
     months_to_forecast = record_months_to_forecast(df, predictors)
-    final_lag_dict = {} if lag_dict is None else lag_dict.copy()  # Keep track of all lags used
+
+    final_lag_dict = {} if lag_dict is None else lag_dict.copy()  
 
     for col in predictors:
+
+        # dummy variable should not be forecasted, fill values with 0
         if col == "dummy":
             df[col].fillna(0, inplace=True)
             continue
@@ -129,13 +135,16 @@ def forecast_indicators(df,
             for forecast_date in months_to_forecast[col]:
                 data_before_forecast = df.loc[df.index <= forecast_date, col].dropna()
 
+                # Safety condition to ensure series greater than length 10
                 if len(data_before_forecast) < 10:
                     continue
 
                 try:
                     if col in final_lag_dict:
                         best_lag = final_lag_dict[col]
-                    else: # if a new col is being used, search for best lags
+
+                    # If a new indicator is being used, find optimal lags with BIC
+                    else: 
                         best_aic = np.inf
                         best_lag = 1
                         max_lags = 4
@@ -151,14 +160,15 @@ def forecast_indicators(df,
 
                         final_lag_dict[col] = best_lag
 
+                    # AR model prediction
                     final_model = AutoReg(data_before_forecast, lags=best_lag, old_names=False).fit()
                     predicted_value = final_model.predict(start=len(data_before_forecast), end=len(data_before_forecast)).iloc[0]
+
+                    # Store the prediction for the next step of iterated forecasting
                     df.loc[forecast_date, col] = predicted_value
 
                 except Exception as e:
                     pass 
-
-    #print(final_lag_dict)
 
     df = df.reset_index().sort_values(by="date").reset_index(drop=True)
     return df
