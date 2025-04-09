@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.stats import t
 from math import erf, sqrt
 from arch import arch_model
+
 from arch.unitroot import DFGLS
 import statsmodels.api as sm
 import os
@@ -40,8 +41,7 @@ def dm_test_hac_regression(actual, pred1, pred2, h, crit="MSE"):
         d = (actual - pred1) ** 2 - (actual - pred2) ** 2
     elif crit == "MAD":
         d = np.abs(actual - pred1) - np.abs(actual - pred2)
-    elif crit == "MAPE":
-        d = np.abs((actual - pred1) / actual) - np.abs((actual - pred2) / actual)
+
     print(apply_df_gls_test(d))
     T = len(d)
     print(T)
@@ -60,11 +60,11 @@ def dm_test_hac_regression(actual, pred1, pred2, h, crit="MSE"):
     hac_results = results.get_robustcov_results(cov_type='HAC', maxlags=maxlags)
 
     #HAC standard errors
-    hac_se = hac_results.bse[0]  # Extract standard error of the constant term (index 0)
-    print(f"HAC Standard Error (maxlags={maxlags}): {hac_se}")
+    hac_sd = hac_results.bse[0]  # Extract standard error of the constant term (index 0)
+    print(f"HAC Standard Error (maxlags={maxlags}): {hac_sd}")
     
     #calculate the DM statistic using formula in notes
-    dm_stat = d_mean / (hac_se / np.sqrt(T))
+    dm_stat = d_mean / (hac_sd / np.sqrt(T))
 
 
     p_value = 1 - stats.norm.cdf(dm_stat)
@@ -112,3 +112,27 @@ def run_dm_test(df):  # takes input from RMSFE function (row_error.csv)
     return pd.DataFrame(results)
 
 print(run_dm_test(df))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
