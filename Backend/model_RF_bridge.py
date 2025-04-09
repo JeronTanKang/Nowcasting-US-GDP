@@ -36,8 +36,9 @@ def get_selected_features(X, Y, n_splits=5):
     Runs RFECV using time series split on preprocessed and lagged X, Y data.
     Only the training set is used for feature selection.
 
-    # Kelli pls specify here that this function is used only when u wna do feature selection. Once features are chosen, this part isnt run again to save computation time.
-
+    # This function is used only when doing feature selection. 
+    # Once features are chosen, this function does not run again to save computation time.
+    
     Args:
         X (pd.DataFrame): Feature matrix containing the preprocessed and lagged macroeconomic data.
         Y (pd.Series): Target vector containing GDP growth values.
@@ -181,7 +182,7 @@ def model_RF_bridge(df, model_path='../Backend/tuned_RF_bridge_model.joblib'):
 
         nowcast_results = forecast_df[["date"]].copy()
         nowcast_results["Nowcasted_GDP_Growth"] = predicted_growth
-        nowcast_results["Nowcasted_GDP"] = predicted_gdp
+        
     else:
         #print("No rows to nowcast.")
         nowcast_results = pd.DataFrame()
