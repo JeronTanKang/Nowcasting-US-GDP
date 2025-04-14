@@ -1,14 +1,13 @@
-"""Forecasting Model Comparison Functions
-
+"""
 This file contains functions for conducting statistical tests to compare the forecast performance of different models using the Diebold-Mariano (DM) test. 
 The `apply_df_gls_test` function applies the DF-GLS unit root test to the residuals of model predictions to assess their stationarity, a crucial aspect of time-series analysis. 
 The `dm_test_hac_regression` function computes the DM test statistic, evaluating whether the forecast performance of two models differs significantly in terms of prediction accuracy using either Mean Squared Error (MSE) or Mean Absolute Deviation (MAD) as criteria. It also accounts for heteroskedasticity by using HAC standard errors.
 
 Functions:
-- `apply_df_gls_test`**: Applies the DF-GLS unit root test to the residuals and returns the test statistic and p-value.
-- `dm_test_hac_regression`**: Calculates the Diebold-Mariano test statistic to compare the forecast accuracy between two models, using MSE or MAD and HAC standard errors.
-- `run_dm_test`**: Runs the DM test for multiple model comparisons and returns the results, including the DM statistic, p-value, and significance of the difference in forecast performance."""
-
+- `apply_df_gls_test`: Applies the DF-GLS unit root test to the residuals and returns the test statistic and p-value.
+- `dm_test_hac_regression`: Calculates the Diebold-Mariano test statistic to compare the forecast accuracy between two models, using MSE or MAD and HAC standard errors.
+- `run_dm_test`: Runs the DM test for multiple model comparisons and returns the results, including the DM statistic, p-value, and significance of the difference in forecast performance.
+"""
 import numpy as np
 import pandas as pd 
 from arch.unitroot import DFGLS
