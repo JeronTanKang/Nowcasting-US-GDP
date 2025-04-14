@@ -1,22 +1,11 @@
 import numpy as np
 import pandas as pd 
-from scipy.stats import t
-from math import erf, sqrt
-from arch import arch_model
-
 from arch.unitroot import DFGLS
 import statsmodels.api as sm
 import os
 import sys
-from statsmodels.tsa.stattools import adfuller
 import scipy.stats as stats
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
-from dieboldmariano import dm_test
-file_path = "../Data/row_error_dropped_covid.csv"
-#file_path = "../Data/row_error.csv"
-df = pd.read_csv(file_path)
-
-#H0: both models perform the same H1: bridge model is better
 
 #DF-GLS test
 def apply_df_gls_test(residuals):
@@ -37,6 +26,7 @@ def apply_df_gls_test(residuals):
 
 def dm_test_hac_regression(actual, pred1, pred2, h, crit="MSE"):
     # compute the residuals (d_t)
+    #H0: both models perform the same H1: bridge model is better
     if crit == "MSE":
         d = (actual - pred1) ** 2 - (actual - pred2) ** 2
     elif crit == "MAD":
@@ -64,7 +54,7 @@ def dm_test_hac_regression(actual, pred1, pred2, h, crit="MSE"):
     print(f"HAC Standard Error (maxlags={maxlags}): {hac_sd}")
     
     #calculate the DM statistic using formula in notes
-    dm_stat = d_mean / (hac_sd / np.sqrt(T))
+    dm_stat = d_mean / hac_sd
 
 
     p_value = 1 - stats.norm.cdf(dm_stat)
@@ -78,11 +68,11 @@ def run_dm_test(df):  # takes input from RMSFE function (row_error.csv)
         ("model_AR_h1", "model_ADL_bridge_m3"),
         ("model_AR_h2", "model_ADL_bridge_m6"),
         ("model_RF_h1", "model_RF_bridge_m3"),
-        ("model_RF_h2", "model_RF_bridge_m6"),
-        ("model_AR_h1", "combined_bridge_forecast_m3"),
-        ("model_AR_h2", "combined_bridge_forecast_m6"),
-        ("model_RF_h1", "combined_bridge_forecast_m3"),
-        ("model_RF_h2", "combined_bridge_forecast_m6"),
+        ("model_RF_h2", "model_RF_bridge_m6")
+        #("model_AR_h1", "combined_bridge_forecast_m3"),
+        #("model_AR_h2", "combined_bridge_forecast_m6"),
+        #("model_RF_h1", "combined_bridge_forecast_m3"),
+        #("model_RF_h2", "combined_bridge_forecast_m6"),
     ]
     
     results = []
@@ -111,8 +101,11 @@ def run_dm_test(df):  # takes input from RMSFE function (row_error.csv)
 
     return pd.DataFrame(results)
 
-print(run_dm_test(df))
+if __name__ == "__main__":
+    file_path = "../Data/row_error.csv"
+    df = pd.read_csv(file_path)
 
+    print(run_dm_test(df))
 
 
 
