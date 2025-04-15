@@ -71,6 +71,7 @@ def model_AR(df):
     return forecast_df[["date", "Nowcasted_GDP_Growth"]]
 
 
+# Code below is for testing each model individually
 if __name__ == "__main__":
     file_path = "../Data/bridge_df.csv"
     
