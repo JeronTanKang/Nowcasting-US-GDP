@@ -14,10 +14,8 @@ import numpy as np
 import statsmodels.api as sm
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
-
 from datetime import datetime
 from statsmodels.tsa.ar_model import AutoReg
-
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
@@ -166,6 +164,7 @@ def model_ADL_bridge(df):
     return nowcast_df
 
 
+# Code below is for testing each model individually
 if __name__ == "__main__":
     file_path = "../Data/bridge_df.csv"
     df = pd.read_csv(file_path)
