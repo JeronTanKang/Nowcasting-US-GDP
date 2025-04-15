@@ -113,6 +113,8 @@ def model_RF(df):
     return df_to_pred
 
 
+
+# Code below is for testing each model individually
 if __name__ == "__main__":
     file_path = "../Data/tree_df.csv"
 
