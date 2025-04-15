@@ -193,48 +193,43 @@ def model_RF_bridge(df, model_path='../Backend/tuned_RF_bridge_model.joblib'):
 
 
 
+# Code below is for testing each model individually
 if __name__ == "__main__":
-    # #Actual data
     file_path = "../Data/tree_df.csv"
     df = pd.read_csv(file_path)
 
-    df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
-
-    # #Sort date in ascending order
-    df = df.sort_values(by='date', ascending= True)
-
-    # #Aggregate Data
-    df1 = aggregate_indicators(df)
-
-    # #Create lagged features
-    exclude_columns = ["date", "GDP", "dummy"]
-    df1 = create_lag_features(df1, exclude_columns, 4) 
-
-    # #Sort date again 
-    df1 = df1.sort_values(by='date', ascending= True)
-
-    # #Drop NaN values created by lagging 
-    df1.dropna(inplace = True)
-
-    # #Drop 'Date' before defining X 
-    
-    X = df1.drop(columns=["gdp_growth", "GDP", "date"])  
-    Y = df1['gdp_growth']
-
-    selected_features = [
-        'Unemployment',
-        'Capacity_Utilization',
-        'Nonfarm_Payrolls',
-        'New_Orders_Durable_Goods',
-        'Housing_Starts_lag2',
-        'Nonfarm_Payrolls_lag1',
-        'New_Home_Sales_lag1'
-    ]
-
     model_path = '../Backend/tuned_RF_bridge_model.joblib'
 
-    
+    # if pre-tuned model does not exist, generate tuned model
     if not os.path.exists(model_path):
+        df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
+        df = df.sort_values(by='date', ascending= True)
+        df1 = aggregate_indicators(df)
+
+        # #Create lagged features
+        exclude_columns = ["date", "GDP", "dummy"]
+        df1 = create_lag_features(df1, exclude_columns, 4) 
+
+        df1 = df1.sort_values(by='date', ascending= True)
+
+        # Drop NaN values created by lagging 
+        df1.dropna(inplace = True)
+
+        # prepare X and Y datasets
+        X = df1.drop(columns=["gdp_growth", "GDP", "date"])  
+        Y = df1['gdp_growth']
+
+        selected_features = [
+            'Unemployment',
+            'Capacity_Utilization',
+            'Nonfarm_Payrolls',
+            'New_Orders_Durable_Goods',
+            'Housing_Starts_lag2',
+            'Nonfarm_Payrolls_lag1',
+            'New_Home_Sales_lag1'
+        ]
+
+
         _ = tune_random_forest(X, Y, selected_features, model_path=model_path)
 
     results = model_RF_bridge(df)
