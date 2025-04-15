@@ -86,7 +86,7 @@ def aggregate_indicators(df):
     quarterly_df["date"] = pd.to_datetime(quarterly_df["date"], format='%Y-%m')
 
     # Run line below to check output
-    #print("THIS IS WHAT COMES OUT OF aggregate_indicators", quarterly_df)
+    #print("output from aggregate_indicators", quarterly_df)
     return quarterly_df
 
 def create_lag_features(df, exclude_columns, max_lag):
