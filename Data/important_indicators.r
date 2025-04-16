@@ -16,7 +16,7 @@ fredr_set_key(api_key)
 
 #30 years of data
 start_date <- as.Date("2025-03-21") - 365 * 30
-end_date <- Sys.Date()
+end_date <- as.Date("2025-03-21")
 
 # List of variables a
 variables <- list(
@@ -107,6 +107,13 @@ aggregate_indicators <- function(df) {
     "junk_bond_spread" = "mean"
   )
   
+  #cols to ffill for indicators that need to be summed
+  cols_to_ffill <- c("Trade_Balance", "Retail_Sales", "Housing_Starts", "Nonfarm_Payrolls",
+                     "New_Orders_Durable_Goods", "New_Home_Sales", "Business_Inventories",
+                     "Construction_Spending", "Wholesale_Inventories")
+  df <- df %>%
+    arrange(date) %>%
+    fill(all_of(cols_to_ffill), .direction = "down")
   
   gdp_data <- df %>%
     filter(!is.na(GDP)) %>%  # Remove NA values first
