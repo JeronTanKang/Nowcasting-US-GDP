@@ -40,6 +40,14 @@ def model_RF(df):
     #Sort date in ascending order
     df = df.sort_values(by='date', ascending=True)
 
+    #ffill columns that are sum
+    cols_to_ffill = [
+    "Trade_Balance", "Retail_Sales", "Housing_Starts", "Nonfarm_Payrolls",
+    "New_Orders_Durable_Goods", "New_Home_Sales", "Business_Inventories",
+    "Construction_Spending", "Wholesale_Inventories"
+]
+
+    df[cols_to_ffill] = df[cols_to_ffill].ffill()
     #Aggregate Data
     df_aggregated = aggregate_indicators(df) #gdp_growth is not aggregated 
 
@@ -47,6 +55,8 @@ def model_RF(df):
  
     #lag variables
     exclude_columns = ["date", "GDP", "dummy"] #df to exclude later when laggin indicators
+
+    #
     df_lagged = create_lag_features(df_aggregated, exclude_columns, 6) # 6 lags of each indicator 
 
 
