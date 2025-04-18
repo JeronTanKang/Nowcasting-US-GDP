@@ -51,3 +51,17 @@ DSE3101/
 ```bash
 git clone https://github.com/JeronTanKang/stealth_bois.git
 cd stealth_bois
+```
+
+### 2. Install Dependencies
+Ensure you have Python 3.8+ installed. Then, create a virtual environment and install the required packages:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 3. Add API Keys
+You need a FRED API key to pull macroeconomic data.
+
+Paste your API key into the Data/api_keys.R file like this:
