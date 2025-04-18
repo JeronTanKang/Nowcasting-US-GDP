@@ -7,7 +7,8 @@ This project implements a real-time GDP nowcasting system using statistical and 
 ---
 
 ## Repository Structure
-
+<pre>
+\```text
 stealth_bois/
 ├── app.py                         # Main Streamlit dashboard entry point
 ├── README.md
@@ -40,6 +41,9 @@ stealth_bois/
 │   ├── bridge_indicators.r                # Monthly → quarterly transformation
 │   ├── tree_df.r                          # Script for tree_df construction
 │   └── api_keys.R                         # FRED API key loader
+\```
+</pre>
+
 
 ##  Setup & Running the Dashboard
 
