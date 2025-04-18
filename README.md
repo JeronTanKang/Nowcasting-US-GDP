@@ -8,8 +8,8 @@ This project implements a real-time GDP nowcasting system using statistical and 
 
 ## Repository Structure
 <pre>
-\```text
-stealth_bois/
+
+DSE3101/
 ├── app.py                         # Main Streamlit dashboard entry point
 ├── README.md
 
