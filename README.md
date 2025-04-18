@@ -8,38 +8,38 @@ This project implements a real-time GDP nowcasting system using statistical and 
 
 ## Repository Structure
 
-DSE3101/
+stealth_bois/
 ├── app.py                         # Main Streamlit dashboard entry point
 ├── README.md
 
 ├── Backend/                       # All backend processing and forecasting logic
-│   ├── data_processing.py                # Preprocessing and differencing
-│   ├── forecast_bridge_indicators.py     # Forecast missing monthly data
-│   ├── forecast_evaluation.py            # RMSFE, MAFE, and DM test
-│   ├── model_AR.py                       # AR benchmark model
-│   ├── model_ADL_bridge.py               # ADL Bridge model
-│   ├── model_RF.py                       # Random Forest benchmark model
-│   ├── model_RF_bridge.py                # RF Bridge with hyperparameter tuning
-│   ├── model_DFM.py                      # (Optional) DFM baseline
-│   ├── dm_test.py                        # Diebold-Mariano test
-│   └── tuned_RF_bridge_model.joblib      # Pretrained RF Bridge model
+│   ├── data_processing.py                 # Preprocessing and differencing
+│   ├── forecast_bridge_indicators.py      # Forecast missing monthly data
+│   ├── forecast_evaluation.py             # RMSFE, MAFE, and DM test
+│   ├── model_AR.py                        # AR benchmark model
+│   ├── model_ADL_bridge.py                # ADL Bridge model
+│   ├── model_RF.py                        # Random Forest benchmark model
+│   ├── model_RF_bridge.py                 # RF Bridge with hyperparameter tuning
+│   ├── model_DFM.py                       # (Optional) DFM baseline
+│   ├── dm_test.py                         # Diebold-Mariano test
+│   └── tuned_RF_bridge_model.joblib       # Pretrained RF Bridge model
 
 ├── Frontend/                    # UI components (if modularized)
 
 ├── Data/                        # Data files and R scripts
-│   ├── tree_df.csv                       # Non-linear model input
+│   ├── tree_df.csv                        # Non-linear model input
 │   ├── tree_df_test.csv
-│   ├── bridge_df.csv                     # Linear model input
-│   ├── final_df.csv                      # Combined evaluation set
+│   ├── bridge_df.csv                      # Linear model input
+│   ├── final_df.csv                       # Combined evaluation set
 │   ├── row_error.csv
-│   ├── row_error_dropped_covid.csv       # Forecast errors for DM test
+│   ├── row_error_dropped_covid.csv        # Forecast errors for DM test
 │   ├── rmsfe.csv
-│   ├── mae_df.csv                        # Model performance metrics
-│   ├── *_dropped_covid.csv               # Excludes COVID quarters
-│   ├── important_indicators.r            # LASSO + intuition-based selection
-│   ├── bridge_indicators.r               # Monthly → quarterly transformation
-│   ├── tree_df.r                         # Script for tree_df construction
-│   └── api_keys.R                        # FRED API key loader
+│   ├── mae_df.csv                         # Model performance metrics
+│   ├── *_dropped_covid.csv                # Excludes COVID quarters
+│   ├── important_indicators.r             # LASSO + intuition-based selection
+│   ├── bridge_indicators.r                # Monthly → quarterly transformation
+│   ├── tree_df.r                          # Script for tree_df construction
+│   └── api_keys.R                         # FRED API key loader
 
 ##  Setup & Running the Dashboard
 
