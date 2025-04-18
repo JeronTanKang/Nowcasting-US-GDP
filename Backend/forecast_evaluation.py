@@ -202,7 +202,7 @@ def generate_oos_forecast(df, df_nonlinear, window_size=int(12*17.5), time_trave
 
         # These indicators are typically only released one month later
         # drop these value from the monthly indicators to simulate them being unreleased
-        indicators_released_late = ["Construction_Spending", "Housing_Starts", "Capacity_Utilization", "Unemployment", "New_Orders_Durable_Goods"]
+        indicators_released_late = ["Construction_Spending", "Housing_Starts", "Capacity_Utilization", "Unemployment", "New_Orders_Durable_Goods", "junk_bond_spread", "Trade_Balance_lag1"]
 
         for indic in indicators_released_late:
             if indic in historical_data.columns:
