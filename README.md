@@ -40,7 +40,6 @@ DSE3101/
 │   ├── bridge_indicators.r               # Monthly → quarterly transformation
 │   ├── tree_df.r                         # Script for tree_df construction
 │   └── api_keys.R                        # FRED API key loader
----
 
 ##  Setup & Running the Dashboard
 
