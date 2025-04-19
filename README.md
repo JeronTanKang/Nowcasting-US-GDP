@@ -16,32 +16,32 @@ DSE3101/
 ├── Backend/                       # All backend processing and forecasting logic
 │   ├── data_processing.py                 # Preprocessing and differencing
 │   ├── forecast_bridge_indicators.py      # Forecast missing monthly data
-│   ├── forecast_evaluation.py             # RMSFE, MAFE, and DM test
+│   ├── forecast_evaluation.py             # computes RMSFE, MAFE, Skew and Kurtosis
 │   ├── model_AR.py                        # AR benchmark model
 │   ├── model_ADL_bridge.py                # ADL Bridge model
 │   ├── model_RF.py                        # Random Forest benchmark model
 │   ├── model_RF_bridge.py                 # RF Bridge with hyperparameter tuning
-│   ├── model_DFM.py                       # (Optional) DFM baseline
 │   ├── dm_test.py                         # Diebold-Mariano test
 │   └── tuned_RF_bridge_model.joblib       # Pretrained RF Bridge model
 
-├── Frontend/                    # UI components (if modularized)
+├── Frontend/                    # UI components
+│   ├── Frontend to add these
 
 ├── Data/                        # Data files and R scripts
 │   ├── tree_df.csv                        # Non-linear model input
-│   ├── tree_df_test.csv
+│   ├── tree_df_test.csv                   # Not part of main workflow. For manually testing.
 │   ├── bridge_df.csv                      # Linear model input
 │   ├── final_df.csv                       # Combined evaluation set
-│   ├── row_error.csv
-│   ├── row_error_dropped_covid.csv        # Forecast errors for DM test
-│   ├── rmsfe.csv
+│   ├── row_error.csv                      # Forecast errors
+│   ├── row_error_dropped_covid.csv        # Forecast errors without covid period
+│   ├── rmsfe.csv                          # Model performance metrics
 │   ├── mae_df.csv                         # Model performance metrics
 │   ├── *_dropped_covid.csv                # Excludes COVID quarters
 │   ├── important_indicators.r             # LASSO + intuition-based selection
-│   ├── bridge_indicators.r                # Monthly → quarterly transformation
+│   ├── bridge_indicators.r                # Monthly to quarterly transformation
 │   ├── tree_df.r                          # Script for tree_df construction
 │   └── api_keys.R                         # FRED API key loader
-\```
+
 </pre>
 
 
