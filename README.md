@@ -36,6 +36,7 @@ DSE3101/
 
 ├── Frontend/                    # UI components
 │   ├── dashboard_layout.py      # Contains UI and backend logic for each dashboard view
+    ├── evaluation_module.py     # Generates df for model comparison tab
     ├── logo.png                 # Goldman Slacks logo
   
 ├── Data/                            # All data inputs, transformation scripts, and outputs
@@ -43,6 +44,8 @@ DSE3101/
 │   ├── bridge_df.csv                   # Linear model input
 │   ├── tree_df.csv                     # Non-linear model input
 │   ├── manual_testing.csv              # For manually testing 2024 out-of-sample
+    ├── df_eval.csv                     # Generated from evaluation_module.py for model comparison tab
+    ├── df_eval_no_covid.csv            # Generated from evaluation_module.py for model comparison tab
 │   ├── important_indicators.r          # LASSO for indicator selection
 │   ├── bridge_indicators.r             # Script to fetch data on indicators identified by LASSO + Intuition to generate bridge_df.csv
 │   ├── tree_df.r                       # Script to generate tree_df
