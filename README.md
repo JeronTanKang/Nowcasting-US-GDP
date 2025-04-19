@@ -8,7 +8,9 @@ The objective of this project is to build a real-time GDP nowcasting system usin
 
 End users include policy analysts, researchers, and students looking to monitor macroeconomic conditions. Key features include model comparisons, time-travel simulation, and recession-aware forecasting.
 
-![image](https://github.com/user-attachments/assets/d5025c45-5e1f-4c05-83d2-bac2df34f292)
+![image](https://github.com/user-attachments/assets/c99e1cc1-2077-4cdc-a4b4-7f3f21db7144)
+
+![image](https://github.com/user-attachments/assets/62a513da-e855-4172-be31-99f9f3570912)
 
 ---
 
