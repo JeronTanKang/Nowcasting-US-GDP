@@ -32,8 +32,8 @@ DSE3101/
 │   ├── bridge_df.csv                   # Linear model input
 │   ├── tree_df.csv                     # Non-linear model input
 │   ├── manual_testing.csv              # For manually testing 2024 out-of-sample
-│   ├── important_indicators.r          # LASSO + intuition-based feature selection
-│   ├── bridge_indicators.r             # Monthly to quarterly transformation
+│   ├── important_indicators.r          # LASSO
+│   ├── bridge_indicators.r             # Script to fetch data on indicators identified by LASSO + Intuition to generate bridge_df.csv
 │   ├── tree_df.r                       # Script to generate tree_df
 │
 │   ├── results_and_outputs/            # Model performance metrics and evaluation results
