@@ -49,8 +49,8 @@ DSE3101/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/JeronTanKang/stealth_bois.git
-cd stealth_bois
+git clone https://github.com/JeronTanKang/Nowcasting-US-GDP.git
+cd Nowcasting-US-GDP
 ```
 
 ### 2. Install Dependencies
