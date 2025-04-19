@@ -74,7 +74,7 @@ We used a set of **23 macroeconomic indicators** obtained from the FRED-MD datab
 - ADL Bridge (Linear model with high-frequency inputs)  
 - RF Bridge (Non-linear with hyperparameter tuning and high-frequency inputs)
 
-Bridge models constructed quarterly predictors using **forecasted monthly indicators**, simulating real-time data availability.
+Bridge models construct quarterly predictors using **forecasted monthly indicators**, simulating real-time data availability.
 
 **Model performance was evaluated using:**
 - RMSFE (Root Mean Squared Forecast Error)  
