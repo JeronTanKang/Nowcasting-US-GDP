@@ -44,6 +44,31 @@ DSE3101/
 
 </pre>
 
+## Data & Methodology
+
+We used a set of 23 macroeconomic indicators obtained from the FRED-MD database via API. Indicators were aggregated to quarterly frequency using variable-specific rules (e.g., sum for flow variables, mean for stock variables). The target variable, annualized GDP growth, was calculated as the log-difference of real GDP scaled by 400.
+
+Preprocessing involved:
+	•	Differencing non-stationary indicators based on ADF test results
+	•	Lag creation to capture delayed effects
+	•	Feature selection, using:
+	•	LASSO for linear models (e.g., ADL Bridge)
+	•	RFECV (Recursive Feature Elimination with Cross-Validation) for Random Forest models
+
+We implemented four models:
+	•	AR (Autoregressive benchmark)
+	•	RF (Random Forest benchmark)
+	•	ADL Bridge (Linear model with high-frequency inputs)
+	•	RF Bridge (Non-linear bridge model with hyperparameter tuning)
+
+Bridge models constructed quarterly predictors using forecasted monthly indicators, simulating real-time availability constraints.
+
+Model performance was evaluated using:
+	•	RMSFE (Root Mean Squared Forecast Error)
+	•	MAFE (Mean Absolute Forecast Error)
+	•	Downturn Accuracy
+	•	Directional Accuracy
+	•	Diebold-Mariano Test for comparing predictive accuracy across models
 
 ##  Setup & Running the Dashboard
 
