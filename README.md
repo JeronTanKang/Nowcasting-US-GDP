@@ -114,3 +114,5 @@ Paste your API key into the Data/api_keys.R file like this:
 ```bash
 api_key = "your_fred_api_key_here"
 ```
+
+Link to App: https://nowcasting-us-gdp-ctgqbbsvayhsnvm2ejafbo.streamlit.app/ (Deployed on Streamlit Cloud)
