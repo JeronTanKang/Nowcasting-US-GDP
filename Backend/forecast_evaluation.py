@@ -19,7 +19,6 @@ from scipy.stats import skew, kurtosis
 import matplotlib.pyplot as plt
 import seaborn as sns
 import math
-import textwrap
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Backend')))
 from model_AR import model_AR
 from model_ADL_bridge import model_ADL_bridge
