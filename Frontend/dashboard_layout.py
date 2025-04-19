@@ -62,10 +62,9 @@ def run_time_travel_dashboard(df, df_nonlinear):
         df_nonlinear (pd.DataFrame): DataFrame with non-linear macroeconomic indicators for RF and RF Bridge models.
     """
 
-    # === Header ===
     st.header("🕰️ Time Travel GDP Growth Nowcasting")
 
-    # === Step 1: Setup time window and user selection ===
+    # 1. Setup time window and user selection 
     min_forecast_month = pd.Timestamp("2005-01-01")
     max_forecast_month = pd.Timestamp("2024-09-01")
     valid_dates = pd.date_range(start=min_forecast_month, end=max_forecast_month, freq='QS')
@@ -91,7 +90,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
     quarter_map = {"Q1": "03-01", "Q2": "06-01", "Q3": "09-01", "Q4": "12-01"}
     selected_date = pd.to_datetime(f"{selected_year}-{quarter_map[selected_quarter]}")
 
-    # === Step 2: Buttons to Generate/Reset Nowcast ===
+    # 2. Buttons to Generate/Reset Nowcast
     col3, col4 = st.columns([1, 1])
     with col3:
         if 'generate_clicked' not in st.session_state:
@@ -109,7 +108,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
             st.session_state.pop(key, None)
         st.rerun()
 
-    # === Step 3: Run Forecast if triggered ===
+    # 3. Run Forecast if triggered 
     if st.session_state.generate_clicked:
 
         if (
@@ -130,7 +129,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
         else:
             forecast_df = st.session_state.forecast_df
 
-        # === Step 4: Combine Actuals + Forecasts ===
+        # 4. Combine Actuals + Forecasts 
         end_of_next_quarter = (selected_date + pd.offsets.QuarterEnd(2)).replace(day=1)
         actuals_df = df[
             (df['date'] >= pd.Timestamp("1995-04-01")) &
@@ -141,7 +140,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
         plot_df = plot_df.drop(columns=["actual_gdp_growth_forecast"])
         plot_df = plot_df.rename(columns={"actual_gdp_growth_actual": "actual_gdp_growth"})
 
-        # === Step 5: Set NaNs for plot continuity (trailing unreleased forecasts) ===
+        # 5. Set NaNs for plot continuity (trailing unreleased forecasts) 
         set_nan_indices = {
             'model_AR_h1': [-1],
             'model_ADL_bridge_m1': [-3],
@@ -156,24 +155,23 @@ def run_time_travel_dashboard(df, df_nonlinear):
             for idx in indices:
                 plot_df.loc[plot_df.tail(abs(idx)).head(1).index, col] = np.nan
 
-        # === Step 6: Y-Axis Range Control ===
+        # 6. Y-Axis Range Control 
         min_y = plot_df.drop(columns=["date"]).min().min()
         max_y = plot_df.drop(columns=["date"]).max().max()
         pad = 0.1 * (max_y - min_y)
         y_range = st.slider("Select Y-Axis Range", int(min_y - pad), int(max_y + pad), (int(min_y - pad), int(max_y + pad)))
 
-        # === Step 7: Plot Actuals + Forecasts ===
+        # 7. Plot Actuals + Forecasts 
         if not plot_df.empty:
             st.subheader(f"GDP Growth Nowcast up to {selected_quarter} {selected_year}")
 
-            # --- Initialize Plot ---
             fig = go.Figure()
 
             # Interpolate actual GDP growth line (for smoother line plotting)
             plot_df_actual = plot_df.copy()
             plot_df_actual['actual_gdp_growth'] = plot_df_actual['actual_gdp_growth'].interpolate(method='linear')
 
-            # --- Add Actual GDP Growth ---
+            #  Add Actual GDP Growth 
             fig.add_trace(go.Scatter(
                 x=plot_df_actual['date'],
                 y=plot_df_actual['actual_gdp_growth'],
@@ -193,7 +191,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
                 showlegend=False
             ))
 
-            # --- Forecast Column Mappings ---
+            #  Forecast Column Mappings 
             model_column_map = {
                 "AR": ["model_AR_h1", "model_AR_h2"],
                 "RF": ["model_RF_h1", "model_RF_h2"],
@@ -208,7 +206,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
                 "RF Bridge": "green"
             }
 
-            # --- Add Forecasts by Model ---
+            #  Add Forecasts by Model 
             for model in selected_model:
                 color = model_color_map.get(model)
                 label = f"{model} Forecast (h1 - h2)" if model in ["AR", "RF"] else f"{model} Nowcast (m1 - m6)"
@@ -249,7 +247,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
                     showlegend=False
                 ))
 
-            # --- Forecast Period Highlighting ---
+            #  Forecast Period Highlighting 
             forecast_start_date = plot_df['date'].iloc[-6]  # Start of forecast period
 
             fig.add_trace(go.Scatter(
@@ -280,7 +278,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
                 name="Forecast Period"
             )
 
-            # --- Final Plot Styling ---
+            #  Final Plot Styling 
             fig.update_layout(
                 xaxis=dict(
                     rangeslider=dict(visible=True),
@@ -297,7 +295,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
 
             st.plotly_chart(fig, use_container_width=True)
 
-            # === Step 8: Extract and Organize Forecast Data for Selected and Next Quarter ===
+            # 8. Extract and Organize Forecast Data for Selected and Next Quarter 
 
             forecast_period_df = forecast_df.copy()
 
@@ -346,7 +344,7 @@ def run_time_travel_dashboard(df, df_nonlinear):
                 'RF': next_quarter_data['model_RF_h2'].dropna().values[0] if not next_quarter_data['model_RF_h2'].dropna().empty else None
             }
 
-            # === Step 9: Side-by-side Bar Charts for Each Quarter ===
+            # 9. Side-by-side Bar Charts for Each Quarter 
             col5, col6 = st.columns(2)
 
             # --- Bar Chart for Selected Quarter ---
