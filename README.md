@@ -2,7 +2,7 @@
 
 # Real-Time GDP Nowcasting Dashboard
 
-This project implements a real-time GDP nowcasting system using statistical and machine learning models. It simulates what analysts would see in real time by limiting inputs to data that would have been available at the forecast date. The application features an interactive dashboard built in Streamlit and supports model comparison, flash estimate simulations, and recession-aware forecasting.
+Front-end pls copy paste section 1 project overview here once u done
 
 ---
 
