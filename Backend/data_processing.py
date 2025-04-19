@@ -56,7 +56,7 @@ def aggregate_indicators(df):
         "junk_bond_spread_lag2": "mean",  # Junk bond spread, lag2 (average)
         "junk_bond_spread_lag3": "mean",  # Junk bond spread, lag3 (average)
         "junk_bond_spread_lag4": "mean",  # Junk bond spread, lag4 (average)
-        "dummy": "mean"  # Dummy variable, sum 
+        "dummy": "mean"  # Dummy variable, mean since the whole quarter would have been labelled either 1 or 0 
     }
 
     # Extract the last available GDP value each quarter
