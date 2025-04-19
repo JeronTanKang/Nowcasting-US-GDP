@@ -27,20 +27,26 @@ DSE3101/
 ├── Frontend/                    # UI components
 │   ├── Frontend to add these
 
-├── Data/                        # Data files and R scripts
-│   ├── tree_df.csv                        # Non-linear model input
-│   ├── tree_df_test.csv                   # Not part of main workflow. For manually testing.
-│   ├── bridge_df.csv                      # Linear model input
-│   ├── final_df.csv                       # Combined evaluation set
-│   ├── row_error.csv                      # Forecast errors
-│   ├── row_error_dropped_covid.csv        # Forecast errors without covid period
-│   ├── rmsfe.csv                          # Model performance metrics
-│   ├── mae_df.csv                         # Model performance metrics
-│   ├── *_dropped_covid.csv                # Also Model Performance metrics but these Excludes COVID quarters
-│   ├── important_indicators.r             # LASSO + intuition-based selection
-│   ├── bridge_indicators.r                # Monthly to quarterly transformation
-│   ├── tree_df.r                          # Script for tree_df construction
-│   └── api_keys.R                         # FRED API key loader
+├── Data/                            # All data inputs and output files
+│   ├── api_keys.R                       # FRED API key loader
+│   ├── bridge_df.csv                   # Linear model input
+│   ├── tree_df.csv                     # Non-linear model input
+│   ├── tree_df_test.csv                # Manual testing file (not part of main pipeline)
+│   ├── final_df.csv                    # Combined evaluation set
+│   ├── manual_testing.csv              # For manually testing 2024 out-of-sample
+│   ├── important_indicators.r          # LASSO + intuition-based selection
+│   ├── bridge_indicators.r             # Monthly to quarterly transformation
+│   ├── tree_df.r                       # Script to generate tree_df
+│
+│   └── results_and_outputs/           # Model performance results
+│       ├── distribution.csv                  # Forecast distribution (all periods)
+│       ├── distribution_no_covid.csv         # Forecast distribution (excluding COVID)
+│       ├── mae_df.csv                        # Mean Absolute Forecast Error (full)
+│       ├── mae_df_dropped_covid.csv          # MAE excluding COVID quarters
+│       ├── rmsfe.csv                         # Root Mean Squared Forecast Error (full)
+│       ├── rmsfe_dropped_covid.csv           # RMSFE excluding COVID quarters
+│       ├── row_error.csv                     # Forecast errors (full)
+│       ├── row_error_dropped_covid.csv       # Forecast errors excluding COVID period
 
 </pre>
 
