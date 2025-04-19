@@ -16,7 +16,7 @@ from data_processing import aggregate_indicators
 
 def model_AR(df):
     """
-    Generates a GDP nowcast for the next 2 quarters using a direct AutoRegressive (AR) model.
+    Generates a GDP nowcast for the next 2 quarters using a direct forecast AutoRegressive (AR) model.
     The model uses gdp_growth_lag2 and gdp_growth_lag3 to directly forecast each quarter in forecast_df.
 
     Args:
