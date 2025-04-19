@@ -32,7 +32,7 @@ DSE3101/
 │   ├── bridge_df.csv                   # Linear model input
 │   ├── tree_df.csv                     # Non-linear model input
 │   ├── manual_testing.csv              # For manually testing 2024 out-of-sample
-│   ├── important_indicators.r          # LASSO
+│   ├── important_indicators.r          # LASSO to reduce number of indicators
 │   ├── bridge_indicators.r             # Script to fetch data on indicators identified by LASSO + Intuition to generate bridge_df.csv
 │   ├── tree_df.r                       # Script to generate tree_df
 │
