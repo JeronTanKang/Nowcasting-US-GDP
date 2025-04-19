@@ -39,8 +39,8 @@ DSE3101/
 │   ├── tree_df.r                       # Script to generate tree_df
 │
 │   └── results_and_outputs/           # Model performance results
-│       ├── distribution.csv                  # Forecast distribution (all periods)
-│       ├── distribution_no_covid.csv         # Forecast distribution (excluding COVID)
+│       ├── distribution.csv                  # Distribution of forecast errors: Skew and Excess Kurtosis (all periods)
+│       ├── distribution_no_covid.csv         # Distribution of forecast errors: Skew and Excess Kurtosis (excluding COVID)
 │       ├── mae_df.csv                        # Mean Absolute Forecast Error (full)
 │       ├── mae_df_dropped_covid.csv          # MAE excluding COVID quarters
 │       ├── rmsfe.csv                         # Root Mean Squared Forecast Error (full)
