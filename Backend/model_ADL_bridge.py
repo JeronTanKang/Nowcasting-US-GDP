@@ -122,7 +122,6 @@ def model_ADL_bridge(df):
     predictors_to_forecast = predictors[rows_to_forecast]
     dates_to_forecast = quarterly_indicators_forecasted["date"][rows_to_forecast]
 
-    # Model prediction
     nowcast_growth = ols_model.predict(predictors_to_forecast)
 
     # Lists to store results for iterated forecasting of GDP growth 
