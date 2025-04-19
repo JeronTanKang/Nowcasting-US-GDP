@@ -26,6 +26,7 @@ DSE3101/
 
 ├── Frontend/                    # UI components
 │   ├── Frontend to add these
+  
 ├── Data/                            # All data inputs, transformation scripts, and outputs
 │   ├── api_keys.R                       # FRED API key loader
 │   ├── bridge_df.csv                   # Linear model input
