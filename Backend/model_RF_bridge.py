@@ -72,7 +72,7 @@ def get_selected_features(X, Y, n_splits=5):
 
     return selected_features
 
-def tune_random_forest(X, Y, selected_features, model_path='../Backend/tuned_RF_bridge_model.joblib'):
+def tune_random_forest(X, Y, selected_features, model_path=os.path.join(os.path.dirname(__file__), 'tuned_RF_bridge_model.joblib')):
     """
     Tunes a RandomForestRegressor using time series-aware GridSearchCV and saves the model.
 
@@ -126,7 +126,7 @@ def tune_random_forest(X, Y, selected_features, model_path='../Backend/tuned_RF_
 
     return best_model
 
-def model_RF_bridge(df, model_path='../Backend/tuned_RF_bridge_model.joblib'):
+def model_RF_bridge(df, model_path=os.path.join(os.path.dirname(__file__), 'tuned_RF_bridge_model.joblib')):
     """
     Loads a pre-tuned RF model and runs nowcasting without re-tuning.
 
@@ -144,7 +144,7 @@ def model_RF_bridge(df, model_path='../Backend/tuned_RF_bridge_model.joblib'):
 
     # Your data preprocessing steps
     df = df.sort_values(by='date', ascending=True)
-    df_model = forecast_indicators(df)
+    df_model = forecast_indicators(df, json_filename=os.path.join(os.path.dirname(__file__), "../Data/results_and_outputs/forecast_months_RF.json"))
     df_model = aggregate_indicators(df_model)
     df_model = create_lag_features(df_model, exclude_columns=["date", "GDP"], max_lag=4)
     df_model = df_model.sort_values(by='date', ascending=True)
