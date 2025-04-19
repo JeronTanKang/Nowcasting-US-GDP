@@ -112,7 +112,7 @@ def run_dm_test(df):  # takes input from RMSFE function (row_error.csv)
     return pd.DataFrame(results)
 
 if __name__ == "__main__":
-    file_path = "../Data/row_error.csv"
+    file_path = "../Data/results_and_outputs/row_error.csv"
     df = pd.read_csv(file_path)
 
     print(run_dm_test(df))
