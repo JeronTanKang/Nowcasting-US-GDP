@@ -58,7 +58,7 @@ We used a set of **23 macroeconomic indicators** obtained from the FRED-MD datab
 - AR (Autoregressive benchmark)  
 - RF (Random Forest benchmark)  
 - ADL Bridge (Linear model with high-frequency inputs)  
-- RF Bridge (Non-linear bridge model with hyperparameter tuning)
+- RF Bridge (Non-linear with hyperparameter tuning and high-frequency inputs)
 
 Bridge models constructed quarterly predictors using **forecasted monthly indicators**, simulating real-time data availability.
 
