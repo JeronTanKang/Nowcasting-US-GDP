@@ -1,8 +1,7 @@
 """
 This file contains functions for forecasting missing values in time series data using AutoRegressive models.
 The `record_months_to_forecast` function identifies the months where data is missing and need to be predicted.
-The `forecast_indicators` function forecasts the missing values for different predictor variables using the AutoReg model 
-with 3 lags, while skipping over columns like GDP and other excluded columns.
+The `forecast_indicators` function forecasts the missing values for different predictor variables using the AutoReg model, while skipping over columns like GDP and other excluded columns.
 
 Functions:
 - `record_months_to_forecast`: Identifies the months with missing data for each predictor variable.
