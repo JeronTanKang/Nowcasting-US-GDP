@@ -2,7 +2,9 @@
 
 # Real-Time GDP Nowcasting Dashboard
 
-Front-end pls copy paste section 1 project overview here once u done
+The objective of this project is to build a real-time GDP nowcasting system using a combination of statistical and machine learning models. The dashboard simulates what analysts would see in real time by only using data that would have been available at a given point in time.
+
+End users include policy analysts, researchers, and students looking to monitor macroeconomic conditions. Key features include model comparisons, time-travel simulation, and recession-aware forecasting.
 
 ---
 
@@ -11,6 +13,7 @@ Front-end pls copy paste section 1 project overview here once u done
 
 DSE3101/
 ├── app.py                         # Main Streamlit dashboard entry point
+├── .streamlit                     # Contains config.toml for dashboard theme layout
 ├── README.md
 
 ├── Backend/                       # All backend processing and forecasting logic
@@ -25,7 +28,8 @@ DSE3101/
 │   └── tuned_RF_bridge_model.joblib       # Pretrained RF Bridge model
 
 ├── Frontend/                    # UI components
-│   ├── Frontend to add these
+│   ├── dashboard_layout.py      # Contains UI and backend logic for each dashboard view
+    ├── logo.png                 # Goldman Slacks logo
   
 ├── Data/                            # All data inputs, transformation scripts, and outputs
 │   ├── api_keys.R                       # FRED API key loader
