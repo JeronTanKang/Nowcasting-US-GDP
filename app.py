@@ -19,14 +19,14 @@ from Frontend.dashboard_layout import run_time_travel_dashboard, run_nowcast_das
 from streamlit_option_menu import option_menu
 
 
-# === Step 1: Dashboard Configuration ===
+# 1. Dashboard Configuration
 st.set_page_config(
     page_title="GDP Nowcasting Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
     )
 
-# === Step 2: Data Loader with Caching ===
+# 2. Data Loader with Caching 
 @st.cache_data
 def load_data():
     """
@@ -45,7 +45,7 @@ def load_data():
     df_nonlinear = pd.read_csv(tree_df_path, parse_dates=["date"])
     return df.sort_values(by="date"), df_nonlinear.sort_values(by="date")
 
-# === Step 3: Load Data Once (Session State Management) ===
+# 3. Load Data Once (Session State Management) 
 if 'df' not in st.session_state:
     df, df_nonlinear = load_data()
     st.session_state.df = df
@@ -54,7 +54,7 @@ else:
     df = st.session_state.df
     df_nonlinear = st.session_state.df_nonlinear
 
-# === Step 4: Sidebar Navigation Panel ===
+# 4. Sidebar Navigation Panel
 # Use session state to persist selected page
 if 'selected_page' not in st.session_state:
     st.session_state.selected_page = "Nowcast"
@@ -88,7 +88,7 @@ with st.sidebar:
     )
     st.markdown("---")
 
-# === Step 5: Page Router ===
+# 5. Page Router
 if selected_page == "Current Nowcast":
     run_nowcast_dashboard(df, df_nonlinear)
 
