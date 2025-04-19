@@ -31,8 +31,6 @@ DSE3101/
 │   ├── api_keys.R                       # FRED API key loader
 │   ├── bridge_df.csv                   # Linear model input
 │   ├── tree_df.csv                     # Non-linear model input
-│   ├── tree_df_test.csv                # Manual testing file (not part of main pipeline)
-│   ├── final_df.csv                    # Combined evaluation set
 │   ├── manual_testing.csv              # For manually testing 2024 out-of-sample
 │   ├── important_indicators.r          # LASSO + intuition-based feature selection
 │   ├── bridge_indicators.r             # Monthly to quarterly transformation
