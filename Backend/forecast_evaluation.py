@@ -527,25 +527,25 @@ if __name__ == "__main__":
     #print(res_drop_covid)
     print(row_error_df); print(rmsfe_df)
 
-    row_error_df.to_csv("../Data/row_error.csv", index=False);
-    row_error_df_dropped_covid.to_csv("../Data/row_error_dropped_covid.csv", index=False);
-    rmsfe_df.to_csv("../Data/rmsfe.csv", index=False)
-    mae_df.to_csv("../Data/mae_df.csv", index=False)
-    rmsfe_df_dropped_covid.to_csv("../Data/rmsfe_dropped_covid.csv", index=False)
-    mae_df_dropped_covid.to_csv("../Data/mae_df_dropped_covid.csv", index=False)
+    row_error_df.to_csv("../Data/results_and_outputs/row_error.csv", index=False);
+    row_error_df_dropped_covid.to_csv("../Data/results_and_outputs/row_error_dropped_covid.csv", index=False);
+    rmsfe_df.to_csv("../Data/results_and_outputs/rmsfe.csv", index=False)
+    mae_df.to_csv("../Data/results_and_outputs/mae_df.csv", index=False)
+    rmsfe_df_dropped_covid.to_csv("../Data/results_and_outputs/rmsfe_dropped_covid.csv", index=False)
+    mae_df_dropped_covid.to_csv("../Data/results_and_outputs/mae_df_dropped_covid.csv", index=False)
 
     distribution_no_covid = calculate_skew_kurtosis(row_error_df_dropped_covid)
     distribution = calculate_skew_kurtosis(row_error_df)
 
-    distribution_no_covid.to_csv("../Data/distribution_no_covid.csv", index=False)
-    distribution.to_csv("../Data/distribution.csv", index=False)
+    distribution_no_covid.to_csv("../Data/results_and_outputs/distribution_no_covid.csv", index=False)
+    distribution.to_csv("../Data/results_and_outputs/distribution.csv", index=False)
 
 
     # Test single window forecast
     """
     res_time_travel = generate_oos_forecast(df, df_nonlinear, time_travel_date="2018-03-01", usage="single_period_forecast")
     print(res_time_travel)
-    res_time_travel.to_csv("../Data/res_time_travel.csv", index=False)
+    res_time_travel.to_csv("../Data/results_and_outputs/res_time_travel.csv", index=False)
     """
 
 
