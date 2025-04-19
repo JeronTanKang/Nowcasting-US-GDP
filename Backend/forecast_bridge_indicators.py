@@ -15,6 +15,8 @@ import numpy as np
 from datetime import datetime
 from statsmodels.tsa.ar_model import AutoReg
 
+import json
+
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
@@ -101,7 +103,8 @@ def forecast_indicators(df,
                             'Retail_Sales': 4,
                             'Three_Month_Treasury_Yield': 4,
                             'Wholesale_Inventories': 4
-                        }):
+                        },
+                        json_filename=None):
 
     """
     Forecasts missing values for predictor variables using AutoRegressive models.
@@ -121,6 +124,9 @@ def forecast_indicators(df,
     predictors = df.columns.difference(exclude)
 
     months_to_forecast = record_months_to_forecast(df, predictors)
+
+    with open(json_filename, 'w') as f:
+        json.dump({k: [str(vv) for vv in v] for k, v in months_to_forecast.items()}, f)
 
     final_lag_dict = {} if lag_dict is None else lag_dict.copy()  
 
