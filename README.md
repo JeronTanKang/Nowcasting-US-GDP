@@ -100,4 +100,6 @@ pip install -r requirements.txt
 You need a FRED API key to pull macroeconomic data.
 
 Paste your API key into the Data/api_keys.R file like this:
+```bash
 api_key = "your_fred_api_key_here"
+```
