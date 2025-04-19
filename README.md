@@ -36,7 +36,7 @@ DSE3101/
 │   ├── row_error_dropped_covid.csv        # Forecast errors without covid period
 │   ├── rmsfe.csv                          # Model performance metrics
 │   ├── mae_df.csv                         # Model performance metrics
-│   ├── *_dropped_covid.csv                # Excludes COVID quarters
+│   ├── *_dropped_covid.csv                # Also Model Performance metrics but these Excludes COVID quarters
 │   ├── important_indicators.r             # LASSO + intuition-based selection
 │   ├── bridge_indicators.r                # Monthly to quarterly transformation
 │   ├── tree_df.r                          # Script for tree_df construction
