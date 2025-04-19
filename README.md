@@ -1,10 +1,9 @@
 # Project for DSE3101
 ![image](https://github.com/user-attachments/assets/459c00b8-4c09-434e-a159-74884583045b)
-
 # Real-Time GDP Nowcasting Dashboard
 
 The objective of this project is to build a real-time GDP nowcasting system using a combination of statistical and machine learning models. The dashboard simulates what analysts would see in real time by only using data that would have been available at a given point in time.
-
+![image](https://github.com/user-attachments/assets/eeb944e4-2c68-4e32-a67e-f330de69f4d1)
 End users include policy analysts, researchers, and students looking to monitor macroeconomic conditions. Key features include model comparisons, time-travel simulation, and recession-aware forecasting.
 
 ---
