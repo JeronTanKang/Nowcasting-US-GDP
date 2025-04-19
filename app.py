@@ -1,53 +1,99 @@
+"""
+Main entry point for the GDP Nowcasting Streamlit Dashboard.
+
+This script initializes the user interface, handles navigation between the
+three main dashboard views, and loads pre-processed datasets for use across
+modules. The dashboard supports:
+1. Real-time nowcasting of GDP growth using benchmark and bridge models.
+2. Retrospective 'Time Travel' simulation for backtesting model predictions.
+3. Historical model comparison with and without the COVID-19 shock.
+
+Key Modules:
+- dashboard_layout.py: Contains UI and backend logic for each dashboard view
+"""
+
 import streamlit as st
 import pandas as pd
-from Backend.model_ADL_bridge import model_ADL_bridge  # Import the function from model_ADL_bridge.py
-from Backend.model_AR import model_AR  # Import the function from model_AR.py
-from Frontend.dashboard_layout import display_dashboard  # Import the UI components from the frontend
+import os
+from Frontend.dashboard_layout import run_time_travel_dashboard, run_nowcast_dashboard, run_model_comparison_dashboard
+from streamlit_option_menu import option_menu
 
+
+# === Step 1: Dashboard Configuration ===
 st.set_page_config(
     page_title="GDP Nowcasting Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
     )
 
-st.title("GDP Nowcasting")
-st.markdown("Nowcasting GDP growth across time horizons based on different models (ADL Bridge, AR, RF Bridge, RF).")
-tab1, tab2 = st.tabs(["Nowcasting Results", "Model Comparison"])
+# === Step 2: Data Loader with Caching ===
+@st.cache_data
+def load_data():
+    """
+    Loads preprocessed datasets (linear and nonlinear indicators) from the Data directory.
+    These are used by all models for forecasting GDP growth.
 
+    Returns:
+        df (pd.DataFrame): Stationary macro indicators for linear models (AR and ADL Bridge)
+        df_nonlinear (pd.DataFrame): Feature set for non-linear models (RF and RF Bridge)
+    """
 
-with tab1:
-    st.write("Loading data...")  # Debug marker
-    data = pd.read_csv("Data/bridge_df.csv")
-    st.write("Data loaded:", data.shape)
+    base_dir = os.path.dirname(__file__)
+    bridge_df_path = os.path.join(base_dir, "Data", "bridge_df.csv")
+    tree_df_path = os.path.join(base_dir, "Data", "tree_df.csv")
+    df = pd.read_csv(bridge_df_path, parse_dates=["date"])
+    df_nonlinear = pd.read_csv(tree_df_path, parse_dates=["date"])
+    return df.sort_values(by="date"), df_nonlinear.sort_values(by="date")
 
-    # Load default dataset
-    data_path = "Data/bridge_df.csv"
-    data = pd.read_csv(data_path)
+# === Step 3: Load Data Once (Session State Management) ===
+if 'df' not in st.session_state:
+    df, df_nonlinear = load_data()
+    st.session_state.df = df
+    st.session_state.df_nonlinear = df_nonlinear
+else:
+    df = st.session_state.df
+    df_nonlinear = st.session_state.df_nonlinear
 
-    # Let user select model
-    model_choice = st.selectbox("Select a Model for GDP Nowcasting", ("ADL Model", "AR Model"))
+# === Step 4: Sidebar Navigation Panel ===
+# Use session state to persist selected page
+if 'selected_page' not in st.session_state:
+    st.session_state.selected_page = "Nowcast"
 
-    # res = generate_oos_forecast(df, df_nonlinear, time_travel_date="fill date here", usage="single_period_forecast")
+# Sidebar for page selection using option_menu
+with st.sidebar:
+    st.image("Frontend/logo.png", width=80)
+    st.markdown("---")
+    st.title("GDP Nowcasting Dashboard")
+    st.markdown("##")
 
-    # Generate nowcast
-    if model_choice == "ADL Model":
-        st.info("Running ADL model...")
-        nowcast = model_ADL_bridge(data)
-        model_name = "ADL Model"
+    selected_page = option_menu(
+        menu_title=None,
+        options=["Current Nowcast", "Time Travel", "Model Comparison"],
+        icons=["graph-up", "clock-history", "bar-chart-line"],
+        orientation="vertical"
+    )
 
-    elif model_choice == "AR Model":
-        st.info("Running AR model...")
-        nowcast = model_AR(data)
-        model_name = "AR Model"
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style="color:#729FCF">
+            <h4>Business Objective</h4>
+            <p>
+            This dashboard enables <b>GDP nowcasting</b> by leveraging high-frequency economic indicators.<br><br>
+            It helps <b>policymakers, risk analysts</b>, and <b>investment strategists</b> monitor economic trends and react faster, bridging the gap caused by delayed official GDP releases.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
 
-    # Display results
-    display_dashboard(nowcast, model_name)
+# === Step 5: Page Router ===
+if selected_page == "Current Nowcast":
+    run_nowcast_dashboard(df, df_nonlinear)
 
-with tab2: 
-    st.title("📊 Model Performance Comparison")
-    st.write("Compare GDP nowcasting results across different models against past actual GDP values.")
-    # Loading datasets frm the diff models 
-    #data = pd.read_csv("Data/ADL_bridge")
+if selected_page == "Time Travel":
+    run_time_travel_dashboard(df, df_nonlinear)
 
-    # Let user select model
-    model_types = st.multiselect("Select Model Types", ["AR", "ADL Bridge", "RF", "RF Bridge"])
+if selected_page == "Model Comparison":
+    run_model_comparison_dashboard()
