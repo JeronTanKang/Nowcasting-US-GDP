@@ -107,7 +107,7 @@ def model_ADL_bridge(df):
     ols_model = fit_ols_model(train_ols, variables_to_exclude_from_ADL)
     
     # Forecast values for monthly indicators that have not been released 
-    monthly_indicators_forecasted = forecast_indicators(df)
+    monthly_indicators_forecasted = forecast_indicators(df, json_filename=os.path.join(os.path.dirname(__file__), "../Data/results_and_outputs/forecast_months_ADL.json"))
 
     # Aggregate to quarterly frequency
     quarterly_indicators_forecasted = aggregate_indicators(monthly_indicators_forecasted) 
