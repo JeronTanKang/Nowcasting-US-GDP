@@ -1,4 +1,5 @@
-# Project for DSE3101
+# Nowcasting the US Economy
+## Project for DSE3101
 ![image](https://github.com/user-attachments/assets/459c00b8-4c09-434e-a159-74884583045b)
 # Real-Time GDP Nowcasting Dashboard
 
