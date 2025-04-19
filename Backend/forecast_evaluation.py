@@ -59,20 +59,21 @@ def generate_oos_forecast(df, df_nonlinear, window_size=int(12*17.5), time_trave
         if the current window is predicting the monthly flash estimate of 2012-09-01, our methodology assumes we are at the end of the month (2012-09-30). 
         
         based on Fred MD release schedule the following monthly indicators are typically available by the end of the same month
-        -Trade_Balance_lag1 
-        -Industrial_Production_lag1
-        -Housing_Starts_lag2
-        -junk_bond_spread
-        -junk_bond_spread_lag1
-        -Nonfarm_Payrolls_lag1
-        -New_Home_Sales_lag1
+        -Industrial_Production_lag1: 2nd/3rd week of current month
+        -Housing_Starts_lag2: 2nd/3rd week of current month
+        -junk_bond_spread_lag1: 1st week of current month
+        -Nonfarm_Payrolls_lag1: 1st week of current month
+        -New_Home_Sales_lag1: 3rd/4th week of current month
 
         the following will only be available for the previous month:
-        -Construction_Spending : typically released on the first day, 2 months later
-        -Housing_Starts : typically released the second/third week the next month
-        -Capacity_Utilization : typically released the second/third week the next month
-        -Unemployment : typically released the first week the next month 
-        -New_Orders_Durable_Goods : typically released on the first day, 2 months later
+        -junk_bond_spread: 1st week of next month
+        -Trade_Balance_lag1: 1st week of next month
+        -Construction_Spending: 1st day 2 months later
+        -Housing_Starts: 2nd/3rd week of next month
+        -Capacity_Utilization: 2nd/3rd week of current month
+        -Unemployment: 1st week of next month
+        -New_Orders_Durable_Goods: 1st day 2 months later
+
         
 
     Args:
