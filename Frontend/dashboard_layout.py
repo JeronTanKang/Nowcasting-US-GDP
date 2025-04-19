@@ -458,6 +458,10 @@ def run_nowcast_dashboard(df, df_nonlinear):
         pos = month_position[month]
 
         # Prepare and save required CSVs
+        if pos == "first":
+            df.to_csv(os.path.join(data_dir, "bridge_df.csv"), index=False)
+            df_nonlinear.to_csv(os.path.join(data_dir, "tree_df.csv"), index=False)
+            
         if pos == "second":
             # Generate *_m2
             bridge_df_m2 = move_back_one_month(df)
