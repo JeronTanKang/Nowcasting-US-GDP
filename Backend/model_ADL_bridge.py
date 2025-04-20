@@ -44,8 +44,8 @@ def fit_ols_model(df, variables_to_exclude_from_ADL):
     df = df.set_index('date')
     df = df.iloc[::-1].reset_index(drop=True) # reverse row order
 
-
-    X = df.drop(columns=variables_to_exclude_from_ADL) 
+    cols_to_drop = [col for col in variables_to_exclude_from_ADL if col in df.columns]
+    X = df.drop(columns=cols_to_drop)
     Y = df['gdp_growth']  
 
     model = sm.OLS(Y, X).fit()
